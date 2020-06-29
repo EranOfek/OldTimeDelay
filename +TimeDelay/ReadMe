@@ -1,0 +1,54 @@
+Variable names:
+
+Tau - Vector of time delays recluding the first time delay (=0)
+A0  - \alpha_0
+A   - vector of \alpha_i
+x0  - Position of lens galaxy
+y0  - Position of lens galaxy
+x   - Vector of positions of images x_i
+y   - Vector of positions of images y_i
+
+T   - Vector of times
+f1  - vector of fisrt image flux
+f   - matrix in which each column is a flux light curve of an image
+F_t - Combined flux as function of time
+x_t - x pos as function of time
+y_t - y pos as function of time
+
+
+
+
+
+List of functions:
+
+TimeDelay.simulate_lc_from_ps
+       Generate a random light curve from a power-law power spectrum expectency,
+       and add random errors.
+       Non cyclic and non-equally psaced.
+       Zero mean and unit Std.
+
+
+TimeDelay.logdet
+       Calculate the log(det(Matrix)) using LU decomposition.
+
+
+TimeDelay.dft_matrix
+       Calculate the DFT matrix
+       exp(-1i.*2.*pi.*jV.*lV./N) without sqrt(N) normalization.
+
+TimeDelay.fft_freq
+       Return the frequencies corresponding to fftshift(fft(vec_of_size_N))
+
+
+TimeDelay.power_spectrum_sections
+       Calculate the power spectrum of unevenly spaced time series with gaps
+
+
+TimeDelay.timedelayed_lc
+       Given a light curve, generate a linear combination of time delayed
+       light curves.
+       Return the individual LCs, the combined flux light curves,
+       and the center of mass positions.
+       
+       
+

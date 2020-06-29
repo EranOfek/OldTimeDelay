@@ -1,4 +1,4 @@
-function LogL=flux_delay_logl(Par,PS,ErrF,FitFlag,Limits)
+function LogL=flux_delay_logl(Par,PS,ErrF,FitFlag,Limits,WinPS)
 % Calculate the log-likelihood for two images flux time delay fit
 % Package: TimeDelay
 % Description: Calculate the log-likelihood for two images flux time delay
@@ -18,6 +18,9 @@ function LogL=flux_delay_logl(Par,PS,ErrF,FitFlag,Limits)
 %                    min Tau, Max Tau;
 %                    min gamma, max gamma].
 %            Default is [0 Inf; -eps 1; 5 100; 1.5 3.5].
+%          - Optional window spectrum vector for the same frequencies.
+%            If empty, then don't use the window function.
+%            Default is []. 
 % Output : - Minus Log likelihhod.
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Jan 2020
@@ -31,10 +34,13 @@ ColPower = 2;
 
 DefGamma = 2;
 
-if nargin<5
-    Limits = [0 Inf; -eps 1; 5 100; 1.5 3.5];
-    if nargin<4
-        FitFlag = [NaN NaN NaN DefGamma];
+if nargin<6
+    WinPS = [];
+    if nargin<5
+        Limits = [0 Inf; -eps 1; 5 100; 1.5 3.5];
+        if nargin<4
+            FitFlag = [NaN NaN NaN DefGamma];
+        end
     end
 end
 
@@ -76,6 +82,11 @@ else
     Omega  = 2.*pi.*PS(:,ColFreq);
     SigmaF = abs(Omega).^(-gamma).*( A1.^2 + A2.^2 + 2.*A1.*A2.*cos(Omega.*Tau) ) + ErrF.^2;
 
+    % convolve with window function (doesn't work)
+    if ~isempty(WinPS)
+        SigmaF = conv(SigmaF,WinPS,'same');
+    end
+    
 
     % log determinant of a diagonal matrix
     LogL = -0.5.*sum(log(2.*pi.*SigmaF)) - sum(PS(:,ColPower)./(2.*SigmaF));

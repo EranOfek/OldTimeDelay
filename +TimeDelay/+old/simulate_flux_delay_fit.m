@@ -16,10 +16,11 @@ function [Fit,Res]=simulate_flux_delay_fit(varargin)
 InPar = inputParser;
 
 addOptional(InPar,'TimeVec',(1:1024).');
+addOptional(InPar,'Cyclic',false);
 addOptional(InPar,'EqSpaced',true);
 addOptional(InPar,'InterpMethod','pchip');
 addOptional(InPar,'A0',0);
-addOptional(InPar,'A',[1 0.4].*10); %2./3]);
+addOptional(InPar,'A',[1 0.4]); %2./3]);
 addOptional(InPar,'Tau',[36.9]);
 addOptional(InPar,'gamma',2.5);
 addOptional(InPar,'RelaxGamma',false);
@@ -41,9 +42,8 @@ InPar = InPar.Results;
 VecA1   = logspace(-1,1,40).'; %(0:0.05:10).';
 VecA2dA1= logspace(-2,2,30).'; %(0:0.05:5).';
 
-TimeSpan  = range(InPar.TimeVec); %3.*365; %1731;
 
-if InPar.EqSpaced
+if InPar.Cyclic
     [Res] = TimeDelay.rand_lc_tau('TimeVec',InPar.TimeVec,...
                                   'TimeResample',[],...
                                   'InterpMethod',InPar.InterpMethod,...
@@ -55,30 +55,70 @@ if InPar.EqSpaced
                                   'sigmaFprop',InPar.sigmaFprop,...
                                   'NoiseType',InPar.NoiseType);
     % relative_to_flux  | relative_to_std | relative_to_relstd
+    PS = abs(Res.F_w).^2;
+    FreqVec = Res.Omega./(2.*pi);
+    
+    WinPS = [];
 else
-    [Res]=TimeDelay.rand_lc_tau_nes('TimeVec',InPar.TimeVec,...
-                                       'A',InPar.A,...
-                                       'Tau',InPar.Tau,...
-                                       'gamma',InPar.gamma,...
-                                       'Std2Flux',InPar.Std2Flux,...
-                                       'Noise2Std',InPar.Noise2Std,...
-                                       'CalcPS',true);
+    % non cyclic simulations
+    
+    if InPar.EqSpaced
+        % non cyclic equally spaced
+        [Res]=TimeDelay.rand_lc_tau_nes('TimeVec',InPar.TimeVec,...
+                                           'A',InPar.A,...
+                                           'Tau',InPar.Tau,...
+                                           'gamma',InPar.gamma,...
+                                           'Std2Flux',InPar.Std2Flux,...
+                                           'Noise2Std',InPar.Noise2Std,...
+                                           'CalcPS',true);
+                                       
+        PS = abs(Res.F_w).^2;
+        FreqVec = Res.Omega./(2.*pi);    
+        
+        WinPS = [];
                                   
-   
+    else
+        % SimN3
+        %InPar.TimeVec = timeseries.random_time_sequence(5.*365,1,240,0.05,0.9);
+        % SimN4
+        InPar.TimeVec = timeseries.random_time_sequence(5.*365,2,240,0.05,0.8);
+        
+        [Res]=TimeDelay.rand_lc_tau_nes('TimeVec',InPar.TimeVec,...
+                                           'A',InPar.A,...
+                                           'Tau',InPar.Tau,...
+                                           'gamma',InPar.gamma,...
+                                           'Std2Flux',InPar.Std2Flux,...
+                                           'Noise2Std',InPar.Noise2Std,...
+                                           'CalcPS',true);      
+                                       
+           
+        UseSection = true;
+        if UseSection
+            [PS,FT,Section]=TimeDelay.power_spectrum_sections([Res.TimeVec, Res.F_t]);   
+            FreqVec = PS(:,1);
+            PS      = PS(:,2);
+            WinPS   = [];
+        else
+            % use window function
+            PS = abs(Res.F_w).^2;
+            FreqVec = Res.Omega./(2.*pi);    
+
+            WinPS = abs(Res.W_w).^2;
+        end
+    end
 
 end
 
-    
-    
+TimeSpan  = range(InPar.TimeVec); %3.*365; %1731;
+  
     
 %ErrF      = InPar.sigmaFprop.*Res.MeanF; %.*sqrt(Npt);
 
 
-PS = abs(Res.F_w).^2;
-FreqVec = Res.Omega./(2.*pi);
+
 Flag = abs(FreqVec)<0.25;
 
-Fit=TimeDelay.flux_delay_fit('PS',PS(Flag),'FreqVec',FreqVec(Flag),'Err',Res.sigmaFhat,'winPS',[],...
+Fit=TimeDelay.flux_delay_fit('PS',PS(Flag),'FreqVec',FreqVec(Flag),'Err',Res.sigmaFhat,'WinPS',WinPS,...
                 'VecA1',VecA1,'VecA2dA1',VecA2dA1,'gamma',InPar.gamma,...
                 'TauRange',[3 120],'TimeSpan',TimeSpan,'RelaxGamma',InPar.RelaxGamma,...
                 'Limits',InPar.Limits,'FitMethod','fit_perfreq');
@@ -116,12 +156,15 @@ if InPar.Plot
     SigmaF_calc = [SigmaF_calc(1:I0-1); NaN; SigmaF_calc(I0:end)];
     PS          = [PS(1:I0-1); NaN; PS(I0:end)];
 
-    semilogy(FreqVec,SigmaF)
-    hold on;
-    semilogy(FreqVec,SigmaF_calc)
-    %PS = sum([Section.CommonPS],2);
     semilogy(FreqVec,PS)
-    H=legend('$\Sigma_{F}$ actual','$\Sigma_{F}$ fit','PS','Location','NorthEast');
+    hold on;
+    semilogy(FreqVec,SigmaF,'-','LineWidth',2)
+    
+    semilogy(FreqVec,SigmaF_calc,'-','LineWidth',2)
+    %semilogy(FreqVec,SigmaF_calc.*0.5,'-','LineWidth',2)
+    %PS = sum([Section.CommonPS],2);
+
+    H=legend('PS','$\Sigma_{F}$ actual','$\Sigma_{F}$ fit','Location','NorthEast');
     H.Interpreter = 'latex';
 end
    

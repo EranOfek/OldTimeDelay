@@ -1,19 +1,19 @@
 function [PS,FT,Section]=power_spectrum_sections(LC,varargin)
-% 
+% Calculate the power spectrum of unevenly spaced time series with gaps
+% Package: +TimeDelay
+% Description: Given an unevenly spaced time series, look for sections that
+%              do not have gaps larger than MaxGapT days, and MinNep data
+%              points. Interpolate each section into an equally spaced
+%              timeseries. Calculate the power spectrum of each section and
+%              add all the power spectra in phase.
+% Input  : - Light curve [Time, Flux, Err]
+%          * 
+
 
 
 % [PS,Section]=power_spectrum_sections([LC.Time, LC.LC_Flux]);
 
 InParR = inputParser;
-
-% addOptional(InParR,'Time',731);
-% addOptional(InParR,'gamma',2);
-% addOptional(InParR,'A0',0);
-% addOptional(InParR,'A',[1 2./3]);
-% addOptional(InParR,'TimeDelay',[0 14.7]);
-% addOptional(InParR,'fDC',7);
-% addOptional(InParR,'Err',0.03);
-
 addOptional(InParR,'InterpSampling',1);
 addOptional(InParR,'InterpMethod','linear');
 

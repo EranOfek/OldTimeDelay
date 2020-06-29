@@ -1,0 +1,23 @@
+function timedelayed_lc
+% Given a light curve, generate a linear combination of time delayed light curves.
+% Package: +TimeDelay
+
+% Input  : - A vector of times.
+%          - A vector of the source (first image) light curve.
+%          * Pairs of ...,key,val,... The following keys are available:
+%            'A0'
+%            'A'
+%            'Tau'
+%            'x0'
+%            'y0'
+%            'x'
+%            'y'
+%            'eps_x'
+%            'eps_F'
+%            'gamma'
+%            'InterpMethod'
+% Example: T = (1:1:240).';
+%          TS = Util.stat.rand_ps(T,[2.5 1],zeros(size(T)));
+%          ResA=TimeDelay.photometric_astrometric_model(T,TS(:,2))
+
+

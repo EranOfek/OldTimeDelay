@@ -1,18 +1,17 @@
-function [F_w,LC]=grad_fun(Fun)
-% 
+function [Fjl]=dft_matrix(N)
+% Return the discrete Fourier Transform matrix
 % Package: +TimeDelay
 % Description: 
-% Input  : -
-% Output : - 
+% Input  : - Number of frequencies
+% Output : - DFT matrix F_jl
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Feb 2020
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: N=240;
-%          Omega=ifftshift(TimeDelay.fft_freq(N))./N .*2.*pi;
-%          F_w=TimeDelay.rand_psd(Omega.^-2)
+% Example: [Fjl]=TimeDelay.dft_matrix(10)
 % Reliable: 
 %--------------------------------------------------------------------------
 
-Fun = @TimeDelay.flux_delay_logl
+jV = (0:1:N-1);
+lV = jV.';
 
-LogL = Fun(Par,PS,ErrF,FitFlag,Limits)
+Fjl = exp(-1i.*2.*pi.*jV.*lV./N); %./sqrt(N);

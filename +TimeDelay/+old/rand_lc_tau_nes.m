@@ -45,9 +45,9 @@ addOptional(InPar,'MaxFreq',[]);
 addOptional(InPar,'A0',0);
 addOptional(InPar,'A',[1 0.4]);
 addOptional(InPar,'Tau',[36.9]);
-addOptional(InPar,'gamma',2);
-addOptional(InPar,'Std2Flux',0.3);
-addOptional(InPar,'Noise2Std',0.03);
+addOptional(InPar,'gamma',2.5);
+addOptional(InPar,'Std2Flux',0.5);   % of primary!
+addOptional(InPar,'Noise2Std',0.01);
 addOptional(InPar,'CalcPS',true);
 
 
@@ -77,24 +77,27 @@ LC_NES = interp1(TS(:,1),LC,InPar.TimeVec,InPar.InterpMethod);
 
 
 StdLC = std(LC_NES);
+StdLC_Prim = std(LC1);
+Res.StdLC_Prim = StdLC_Prim;
+
 % add constant flux
-LC_NES = LC_NES + StdLC./InPar.Std2Flux;
+LC_NES = LC_NES ./ StdLC_Prim .* InPar.Std2Flux;
 % add noise
-LC_NES = LC_NES + StdLC.*InPar.Noise2Std.*randn(N,1);
+Res.sigmaF  = InPar.Std2Flux .*InPar.Noise2Std;
+LC_NES = LC_NES + Res.sigmaF.*randn(N,1);
 
 % plot(InPar.TimeVec,LC_NES);
 
 Res.TimeVec = InPar.TimeVec;
-Res.F_t     = LC_NES;
-Res.SigmaF  = StdLC.*InPar.Noise2Std;
+Res.F_t     = LC_NES - mean(LC_NES);   % NOTE: subtracting mean!!
 Res.MeanF   = mean(Res.F_t);
 Res.StdF    = std(Res.F_t);
-Res.sigmaF  = StdLC.*InPar.Noise2Std;
+
 Res.N       = N;
 Res.N_ES    = N_ES;
 
 % calculate the power spectrum
-DeltaFreq = 0.5./range(Res.TimeVec);
+DeltaFreq = 1./range(Res.TimeVec);
 if isempty(InPar.MaxFreq)
     % choose max freq from data
     InPar.MaxFreq = 0.5./median(diff(InPar.TimeVec));
@@ -104,10 +107,17 @@ if (InPar.CalcPS)
     FreqVec  = (0:DeltaFreq:InPar.MaxFreq).';
     FreqVec  = [-flipud(FreqVec(2:end)); FreqVec];
     Res.Nfreq = numel(FreqVec);
-    Res.F_w   = sum(Res.F_t(:).*exp(-2.*pi.*1i.*FreqVec(:).'.*Res.TimeVec(:)),1).'./2;
+    % division by 2 since we are summing over positive and negative
+    % frequencies
+    Res.F_w   = sum(Res.F_t(:).*exp(-2.*pi.*1i.*FreqVec(:).'.*Res.TimeVec(:)),1).'; %./2;
     Res.Freq  = FreqVec;
     Res.Omega = 2.*pi.*Res.Freq;
-    Res.sigmaFhat = Res.SigmaF.*sqrt(Res.N);
+    Res.sigmaFhat = Res.sigmaF.*sqrt(Res.N);
+    %Res.sigmaFhat = Res.sigmaFhat+Res.StdF; %sqrt(Res.sigmaFhat.^2 + Res.StdF.^2);
+    
+    % calc the window function
+    Res.W_w   = sum(exp(-2.*pi.*1i.*FreqVec(:).'.*Res.TimeVec(:)),1).'; %./2;
+    
 end
 
 

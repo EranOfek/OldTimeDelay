@@ -24,14 +24,18 @@ addOptional(InPar,'FreqVec',[]);
 
 addOptional(InPar,'VecA1',logspace(-1,1,20).');
 addOptional(InPar,'VecA2dA1',logspace(-1,1,20).');
+
 addOptional(InPar,'TauRange',[10 50]);
 addOptional(InPar,'TimeSpan',1000);
 addOptional(InPar,'gamma',2);
 addOptional(InPar,'RelaxGamma',false);
 addOptional(InPar,'Norm',1);   % mean(Flux)
-addOptional(InPar,'Err',0);   % mean(Flux)
-addOptional(InPar,'winPS',[]);   % mean(Flux)
-addOptional(InPar,'Limits',[0 Inf; -eps 1; 5 100; 1.5 3.5]);   % mean(Flux)
+addOptional(InPar,'ErrF',0);   % mean(Flux)
+addOptional(InPar,'ErrX',0);   % mean(Flux)
+addOptional(InPar,'ErrY',0);   % mean(Flux)
+
+addOptional(InPar,'WinPS',[]);   % mean(Flux)
+addOptional(InPar,'Limits',[1.8 3;0 Inf;0 Inf; -2 2;-2 2; 5 100; 0 Inf; -2 2; -2 2]);
 addOptional(InPar,'FitMethod','fit_perfreq');   % fit_perfreq
 
 
@@ -48,13 +52,14 @@ VecA2dA1  = InPar.VecA2dA1;
 VecInvTau = (1./max(InPar.TauRange):1./(2.*InPar.TimeSpan):1./min(InPar.TauRange)); 
 VecTau    = 1./VecInvTau;
 Norm      = InPar.Norm;
-ErrF      = InPar.Err;
+ErrF      = [InPar.ErrF, InPar.ErrX, InPar.ErrY];
 Limits    = InPar.Limits;
 
 %VecA1     = VecA1.*Norm;
 
-% remove zero frequency from fit
-Fn0 = FreqVec~=0;
+% remove zero frequency from fit + the lowest frequency...
+Dfreq = min(abs(diff(FreqVec)));
+Fn0 = abs(FreqVec)>(Dfreq+eps);
 FreqVec = FreqVec(Fn0);
 Omega     = 2.*pi.*FreqVec;
 PS      = PS(Fn0);
@@ -68,25 +73,48 @@ else
 end
    
 
+
+Data.F_t   = F_t; % - Vector of total flux
+Data.Time  = (1:1:numel(F_t)).';
+Data.X_t   = x_t; %  - Vector of center of mass X position.
+Data.Y_t   = zeros(size(x_t)); % - Vector of center of mass Y position.
+%Data.Freq   %- Vector of frequencies
+Data.Omega = freqs.*2.*pi; % Omega; %- Vector of 2.*pi.*Frequency
+Data.F_w   = fft(F_t); % F_w; %- power spectrum - multiply by 1/sqrt(N)
+Err=[sigma_F_t, sigma_X_t, sigma_Y_t];
+Err = [5 0.1 0]
+
+
 switch lower(InPar.FitMethod)
     case 'fit_perfreq'
         
         if InPar.RelaxGamma
-            GuessParH1 = [1 1 InPar.gamma];
-            GuessParH0 = [1 InPar.gamma];
+            %            [gamma,      A0, A1  x1, y1, Tau2, A2,   x2, y2,...]
+            GuessParH1 = [InPar.gamma 1   1   1   0   0     0.66  -1  0];
+            GuessParH0 = GuessParH1;
         else
-            GuessParH1 = [1 1];
-            GuessParH0 = [1];
+            GuessParH1 = [InPar.gamma 1   1   1   0   0     0.66  -1  0];
+            GuessParH0 = GuessParH1;
         end
         
         Ntau = numel(VecTau);
         for Itau=1:1:Ntau
             Tau = VecTau(Itau);
-            FitFlagH1 = [NaN NaN Tau FitGamma];
-            FitFlagH0 = [NaN 0   Tau FitGamma];
-            [BestParH1,Fit.LogLH1(Itau),Fit.ExitH1(Itau)] = Util.fit.fminsearch_my({@TimeDelay.flux_delay_logl,[FreqVec, PS],ErrF,FitFlagH1,Limits},GuessParH1);
             
-            [BestParH0,Fit.LogLH0(Itau),Fit.ExitH0(Itau)] = Util.fit.fminsearch_my({@TimeDelay.flux_delay_logl,[FreqVec, PS],ErrF,FitFlagH0,Limits},GuessParH0);
+            %           [gamma,       A0, A1  x1, y1, Tau2, A2, x2, y2,...]
+            FitFlagH1 = [InPar.gamma  NaN NaN NaN NaN Tau   NaN NaN NaN];
+            
+            FlagNaN   = isnan(FitFlagH1);
+            
+            GuessParH1c = GuessParH1(FlagNaN);
+            
+            
+            [BestParH1,Fit.LogLH1(Itau),Fit.ExitH1(Itau)] = Util.fit.fminsearch_my({@TimeDelay.ast_delay_logl,Data,Err,FitFlagH1,Limits,InPar.WinPS},GuessParH1c);
+            
+            
+            FitFlagH0 = [InPar.gamma  0   NaN 0   0   0     0   0   0];
+            
+            [BestParH0,Fit.LogLH0(Itau),Fit.ExitH0(Itau)] = Util.fit.fminsearch_my({@TimeDelay.ast_delay_logl,Data,Err,FitFlagH0,Limits,InPar.WinPS},GuessParH0);
         end
         
         Fit.Tau       = VecTau;
@@ -133,6 +161,67 @@ switch lower(InPar.FitMethod)
         Fit.VecA2dA1 = VecA2dA1;
         
     
+    case 'grid_perfreq'
+        
+        
+        if InPar.RelaxGamma
+            %            [gamma,      A0, A1  x1, y1, Tau2, A2,   x2, y2,...]
+            GuessParH1 = [InPar.gamma 1   1   1   0   0     0.66  -1  0];
+            GuessParH0 = GuessParH1;
+        else
+            GuessParH1 = [InPar.gamma 1   1   1   0   0     0.66  -1  0];
+            GuessParH0 = GuessParH1;
+        end
+        
+        VecX1 = (-2:0.1:2).';
+        VecX2 = (-2:0.1:2).';
+        VecA1 = (0.1:0.1:2).';
+        VecA2dA1 = (0.3:0.1:1).';
+        Nx1 = numel(VecX1);
+        Nx2 = numel(VecX2);
+        Na1 = numel(VecA1);
+        Na2a1 = numel(VecA2dA1);
+        
+        WinPS = [];
+        
+        Ntau = numel(VecTau);
+        for Itau=1:1:Ntau
+            Tau = VecTau(Itau);
+            
+            %           [gamma,       A0, A1  x1, y1, Tau2, A2, x2, y2,...]
+            FitFlagH1 = [InPar.gamma  NaN NaN NaN NaN Tau   NaN NaN NaN];
+            
+            FlagNaN   = isnan(FitFlagH1);
+            
+            GuessParH1c = GuessParH1(FlagNaN);
+            
+            LogL = zeros(Nx1,Nx2,Na1,Na2a1);
+             for Ix1=1:1:Nx1
+                 for Ix2=1:1:Nx2
+                     for Ia1=1:1:Na1
+                         for Ia2a1=1:1:Na2a1
+                             %[gamma, A0, A1 x1, y1, Tau2, A2, x2, y2,...]
+                             Par = [3 2 VecA1(Ia1) VecX1(Ix1) 0 Tau VecA1(Ia1).*VecA2dA1(Ia2a1) VecX2(Ix2) 0];
+                             FitFlag = [NaN NaN NaN NaN NaN NaN NaN NaN NaN];
+                                     Limits = [1.5 3.5;0 Inf;0 Inf; -3 3;-3 3; 5 100; 0 Inf; -3 3; -2 3];
+
+                             LogL(Ix1,Ix2,Ia1,Ia2a1)=TimeDelay.ast_delay_logl(Par,Data,Err,FitFlag,Limits,WinPS);
+                             
+                         end
+                     end
+                 end
+             end
+             
+             
+            
+            [BestParH1,Fit.LogLH1(Itau),Fit.ExitH1(Itau)] = Util.fit.fminsearch_my({@TimeDelay.ast_delay_logl,Data,Err,FitFlagH1,Limits,InPar.WinPS},GuessParH1c);
+            
+            
+            FitFlagH0 = [InPar.gamma  0   NaN 0   0   0     0   0   0];
+            
+            [BestParH0,Fit.LogLH0(Itau),Fit.ExitH0(Itau)] = Util.fit.fminsearch_my({@TimeDelay.ast_delay_logl,Data,Err,FitFlagH0,Limits,InPar.WinPS},GuessParH0);
+        end
+        
         
         
         
@@ -152,10 +241,10 @@ switch lower(InPar.FitMethod)
             MatSigmaF = Norm.*abs(Omega).^(-gamma).*( MatA1(:).'.^2 + MatA2(:).'.^2 + 2.*MatA1(:).'.*MatA2(:).'.*cos(Omega.*MatTau(:).') ) + ErrF.^2;
 
             % convolve with window function (doesn't work)
-            if ~isempty(InPar.winPS)
+            if ~isempty(InPar.WinPS)
                 Npar = size(MatSigmaF,2);
                 for Ipar=1:1:Npar
-                    MatSigmaF(:,Ipar) = conv(MatSigmaF(:,Ipar),InPar.winPS,'same');
+                    MatSigmaF(:,Ipar) = conv(MatSigmaF(:,Ipar),InPar.WinPS,'same');
                 end
             end
 
