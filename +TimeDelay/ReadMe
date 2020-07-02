@@ -24,7 +24,7 @@ List of functions:
 TimeDelay.simulate_lc_from_ps
        Generate a random light curve from a power-law power spectrum expectency,
        and add random errors.
-       Non cyclic and non-equally psaced.
+       Non cyclic and non-equally spaced.
        Zero mean and unit Std.
 
 
@@ -51,4 +51,18 @@ TimeDelay.timedelayed_lc
        and the center of mass positions.
        
        
+TimeDelay.flux_delay_logl
+       Calculate the log-likelihood for two images flux time delay fit
+       logP(F|tau,alpha1,alpha2,gamma)
 
+TimeDelay.flux_delay_fit
+       Given an observed power spectrum, fit a flux-time-delay model
+       with free parameters gamma, tau, alpha1, alpha2
+
+
+TimeDelay.simulate_flux_delay_fit
+       Simulate a combined flux light curve with time delay and fit it
+       using TimeDelay.flux_delay_fit
+
+       MAY NEED TO MODIFY THIS
+       
