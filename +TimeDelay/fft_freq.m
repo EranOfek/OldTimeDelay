@@ -1,24 +1,14 @@
-function FreqVec=fft_freq(N)
-% Return the frequencies corresponding to fftshift(fft(vec_of_size_N))
-% Package: +TimeDelay
-% Description: Return the frequencies corresponding to
-%              fftshift(fft(vec_of_size_N)), without dviding by the total
-%              time span.
-%              A version of this function also exist in +Util/+fft/
-% Input  : - Number of points.
+function Freq=fft_freq(N, D)
+% Return the frequencies off fft with N points and Delta time step D.
+% Package: 
+% Input  : - Number of data points
+%          - Delta time.
 % Output : - Vector of frequencies.
-% License: GNU general public license version 3
-%     By : Eran O. Ofek                    Feb 2020
-%    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: FreqVec=TimeDelay.fft_freq(4)
-% Reliable: 2
-%--------------------------------------------------------------------------
+% Example: Freq=fft_freq(5, 1);
 
 
-if (N.*0.5)==floor(0.5.*N)
-    % even
-    FreqVec = (-N.*0.5:1:N.*0.5-1).';
+if mod(N, 2) == 0
+    Freq = [0:(N/2-1), -N/2:-1] / (D.*N);
 else
-    FreqVec = (-N.*0.5+0.5:1:N.*0.5-0.5).';
+    Freq = [0:(N-1)/2, -(N-1)/2:-1] / (D.*N);
 end
-

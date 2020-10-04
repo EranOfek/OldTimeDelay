@@ -16,9 +16,7 @@ function ResF=timedelayed_lc(T,f1,varargin)
 %            'eps_F'
 %            'gamma'
 %            'InterpMethod'
-% Example: T = (1:1:240).';
-%          TS = TimeDelay.simulate_lc_from_ps(T,[2.5 1],zeros(size(T)));
-%          ResA=TimeDelay.timedelayed_lc(T,TS(:,2))
+% Example: ResF=TimeDelay.timedelayed_lc;
 
 
 InPar = inputParser;
@@ -27,14 +25,26 @@ addOptional(InPar,'A',[1 0.4]); %2./3]);
 addOptional(InPar,'Tau',[36.9]);   % all positive!
 addOptional(InPar,'x0',0);  
 addOptional(InPar,'y0',0);  
-addOptional(InPar,'x',[0 1]);  
-addOptional(InPar,'y',[0 0]);  
-addOptional(InPar,'eps_x',0.02);  
-addOptional(InPar,'eps_F',0.05);  
+addOptional(InPar,'x',[-0.5 0.5]);  
+addOptional(InPar,'y',[0 0]);
+addOptional(InPar,'StdF',0.1);    % Std amplitude relative to mean(F) 
+addOptional(InPar,'eps_x_abs',0.0002);  
+addOptional(InPar,'eps_F_rel',0.0005);
+addOptional(InPar,'t_vec',(1:1:1024).');
 addOptional(InPar,'gamma',2.5);
 addOptional(InPar,'InterpMethod','pchip');
 parse(InPar,varargin{:});
 InPar = InPar.Results;
+
+
+if nargin==0
+    % simulation mode
+    T = InPar.t_vec;
+    TS = TimeDelay.simulate_lc_from_ps(T,[InPar.gamma 1],zeros(size(T)));
+    f1 = TS(:,2);
+    
+    f1 = f1 + std(f1)./InPar.StdF; % add DC to simulated LC
+end
 
 
 FT = @(Flux,Time,Omega)  sum(Flux(:).*exp(-1i.*Omega(:).'.*Time(:)),1).'; %./2;
@@ -74,15 +84,19 @@ F_t  = F_t(Flag);
 x_t  = x_t(Flag);
 y_t  = y_t(Flag);
 
+eps_F_abs = InPar.eps_F_rel.*mean(F_t);
+
 Nt   = numel(T);
-F_t    = F_t + InPar.eps_F.*ones(Nt,1);
-x_t    = x_t + InPar.eps_x.*ones(Nt,1);
-y_t    = y_t + InPar.eps_x.*ones(Nt,1);
+F_t    = F_t +       eps_F_abs.*randn(Nt,1);
+x_t    = x_t + InPar.eps_x_abs.*rand(Nt,1);
+y_t    = y_t + InPar.eps_x_abs.*randn(Nt,1);
 
 ResF.T       = T;
 ResF.f       = f;
 ResF.F_t     = F_t;
 ResF.x_t     = x_t;
 ResF.y_t     = y_t;
+ResF.eps_F_abs = eps_F_abs;
+ResF.eps_x_abs = InPar.eps_x_abs;
 
 
