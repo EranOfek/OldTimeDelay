@@ -1,0 +1,32 @@
+function plots_for_paper
+%%
+
+T = (1:1:240).';
+Nt = numel(T);
+gamma = 3;
+
+f1 = TimeDelay.simulate_lc_from_ps(T,[gamma 1],zeros(Nt,1));
+f1 = f1(:,2);
+
+InPar.A0 = 0;
+InPar.A  = [1 0.5];
+InPar.Tau = 41;
+InPar.x0  = 0;
+InPar.y0  = 0;
+InPar.x   = [-1 1];
+InPar.y   = [0 0];
+InPar.StdF = 0.2;
+InPar.eps_x_abs = 0.05;
+InPar.eps_F_rel = 0.05;
+
+
+ResF=timedelayed_lc(T,f1,'A0',InPar.A0,'A',InPar.A,...
+                         'Tau',InPar.Tau,...
+                         'x0',InPar.x0,'y0',InPar.y0,...
+                         'x',InPar.x,'y',InPar.y,...
+                         'StdF',InPar.StdF',...
+                         'eps_x_abs',InPar.eps_x_abs,'
+
+ResF=TimeDelay.timedelayed_lc;
+% Res=TimeDelay.fit_scan_alpha_astrometric_flux(ResF.T, ResF.F_t,ResF.x_t,ResF.y_t,ResF.eps_F_abs,ResF.eps_x_abs,'VecInvTau',(1./70:0.5./256:1./15));
+

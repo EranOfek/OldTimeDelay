@@ -1,4 +1,4 @@
-function ResF=timedelayed_lc(T,f1,varargin)
+function ResF=timedelayed_eqspaced_lc(Nt,varargin)
 % Given a light curve, generate a linear combination of time delayed light curves.
 % Package: +TimeDelay
 % Input  : - A vector of times.
@@ -19,12 +19,13 @@ function ResF=timedelayed_lc(T,f1,varargin)
 
 
 InPar = inputParser;
+addOptional(InPar,'Dt',1);
 addOptional(InPar,'A0',0);
 addOptional(InPar,'A',[1 0.66]); %2./3]);
 addOptional(InPar,'Tau',[14.7]);   % all positive!
 addOptional(InPar,'x0',0);  
 addOptional(InPar,'y0',0);  
-addOptional(InPar,'x',[1 -1]); %[-1 1]);  
+addOptional(InPar,'x',[1 -1]);  
 addOptional(InPar,'y',[0 0]);
 addOptional(InPar,'StdF',0.3);    % Std amplitude relative to mean(F) 
 addOptional(InPar,'eps_x_abs',0.05);  
@@ -34,6 +35,25 @@ addOptional(InPar,'gamma',3);
 addOptional(InPar,'InterpMethod','pchip');
 parse(InPar,varargin{:});
 InPar = InPar.Results;
+
+
+Freq = TimeDelay.fft_freq(Nt,InPar.Dt);
+Freq = Freq.';
+w    = 2.*pi.*Freq;
+
+Amp  = abs(w).^(-0.5.*InPar.gamma);
+f1_w = Amp.*randn(Nt,1); +1i.*Amp.*randn(Nt,1);
+f_DC = 200;
+f1_w(1) = Nt.*f_DC;
+f1_t = ifft(f1_w,'symmetric');
+f1_w = fft(f1_w);
+
+phi_w = sum((InPar.A(1) + InPar.A(2:end).*exp(1i.*w.*InPar.Tau)).*f1_w,2);
+phi_w(1) = phi_w(1) + Nt.*InPar.A0;
+phi_t = ifft(phi_w);
+chi_t = sum((InPar.A(1).*InPar.x(1) + InPar.A(2:end).*InPar.x(2:end).*exp(1i.*w.*InPar.Tau)).*f1_w,2)./phi_t;
+
+
 
 
 if nargin==0
@@ -64,15 +84,12 @@ f1  = f1(:);
 % generate shifted individual LC
 f = zeros(numel(T),Nim);
 for Iim=1:1:Nim
-    %f(:,Iim) = interp1(T,f1,T-InPar.Tau(Iim),InPar.InterpMethod);
-    f(:,Iim) = interp1(T,f1,T+InPar.Tau(Iim),InPar.InterpMethod);
-    
+    f(:,Iim) = interp1(T,f1,T-InPar.Tau(Iim),InPar.InterpMethod);
 end
 
 % truncate the edges
-Tcut = ceil(max(abs(InPar.Tau)));
-%f  = f(Tcut:end,:);
-f  = f(1:end-Tcut,:);
+Tcut = ceil(max(InPar.Tau));
+f  = f(Tcut:end,:);
 
 
 

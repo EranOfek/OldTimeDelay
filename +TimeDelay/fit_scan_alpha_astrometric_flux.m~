@@ -1,4 +1,4 @@
-function [Res]=fit_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
+function [Res]=fit_scan_alpha_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
 % Fit the 2 images astrometric-flux time delay model to observations
 % Package: +TimeDelay
 % Description:
@@ -36,8 +36,7 @@ function [Res]=fit_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
 %            .BestPar_H1
 % Example: Res=TimeDelay.fit_astrometric_flux
 %          ResF=TimeDelay.timedelayed_lc;
-% Res=TimeDelay.fit_astrometric_flux(ResF.T,ResF.F_t,ResF.x_t,ResF.y_t,ResF.eps_F_abs,ResF.eps_x_abs);
-
+% Res=TimeDelay.fit_astrometric_flux(ResF.T, ResF.F_t,ResF.x_t,ResF.y_t,ResF.eps_F_abs,ResF.eps_x_abs,'VecInvTau',(1./70:0.5./256:1./15));
 
 
 NPAR2D = 11 -1;
@@ -45,20 +44,12 @@ NPAR1D = 8 -1;
 
 InPar = inputParser;
 addOptional(InPar,'Solver',@Util.fit.fminunc_my);
-%addOptional(InPar,'FitPar',[NaN NaN NaN  NaN NaN NaN  NaN NaN NaN  3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-%addOptional(InPar,'FitPar',[0 NaN NaN  NaN   NaN   NaN   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+addOptional(InPar,'FitPar',[0 1   0.66  0   1   -1   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+addOptional(InPar,'Limits',[0 5;0 10;0 10;  -1 1; -2.1 2.1; -2.1 2.1;  -1 1; -2.1 2.1; -2.1 2.1;   1.5 3.5]); %  without Tau
 
-addOptional(InPar,'FitPar',[0 NaN   NaN   0   1   -1   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-addOptional(InPar,'DefPar',[0 1     0.66  0   1   -1   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-
-addOptional(InPar,'Limits',[0 3; 0 5;0 5;  -1 1; -2.1 2.1; -2.1 2.1;  -1 1; -2.1 2.1; -2.1 2.1;   1.5 3.5]); %  without Tau
-
-%addOptional(InPar,'FitPar',[NaN NaN NaN  NaN  NaN NaN   3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-%addOptional(InPar,'DefPar',[2 1   0.66  0   1   -1       3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-%addOptional(InPar,'Limits',[0 5;0 2;0 2;  -1 1; -2.1 2.1; -2.1 2.1;    1.5 3.5]); %  without Tau
 
 addOptional(InPar,'TwoD',true);
-addOptional(InPar,'VecInvTau',1./(8.7:1:19.7)); %(2./100:0.5./100:1./10));  % sign has meaning!
+addOptional(InPar,'Tau',14.7); %1./(8.7:1:19.7)); %(2./100:0.5./100:1./10));
 addOptional(InPar,'Verbose',true);
 parse(InPar,varargin{:});
 InPar = InPar.Results;
@@ -182,17 +173,6 @@ FlagN       = isnan(InPar.FitPar);
 %     otherwise
 %         AddPars = {};
 % end
-AddPars = {};
-
-
-BestGuessH1 = InPar.DefPar(FlagN);
-BestGuessH0 = InPar.DefPar(1:2);  % A0, A1
-    
-% fitting for each time delay
-
-VecTau = 1./InPar.VecInvTau; 
-Ntau   = numel(VecTau);
-
 
 
 Res.Tau    = VecTau(:);
@@ -206,12 +186,32 @@ Res.ExitFlag_H0 = nan(Ntau,1);
 %Options = optimoptions ( 'fminunc','UseParallel',false,'FunctionTolerance',1e-6,'Display','off');
 
 
+Limits = [VecTau(Itau), VecTau(Itau); InPar.Limits];
+FitParH1 = [InPar.Tau, InPar.FitPar(1:end)];
+FitParH1(3:4) = NaN;
 
-for Itau=1:1:Ntau
-    if InPar.Verbose
-        fprintf('Fitting time delay %d of %d   -  Tau=%f\n',Itau,Ntau,VecTau(Itau));
+Na1 = numel(InPar.VecA1);
+Na2 = numel(InPar.VecA2);
+for Ia1=1:1:Na1
+    for Ia2=1:1:Na2
+        A1 = InPar.VecA1(Ia1);
+        A2 = InPar.VecA2(Ia2);
+        
+%         vector of parameters to fit:
+%            [Tau, Alpha0, Alpha1, Alpha2, x0, x1, x2, y0, y1, y2, gamma]
+%          - A vector of flags indicating which parameter to fit, or to use
+%            as constant. The vector is for the following parameters:
+%            [Tau, Alpha0, Alpha1, Alpha2, x0, x1, x2, y0, y1, y2, gamma]
+%            If NaN, then fit the parameter, otherwise, don't fit this
+%            parameter and use the value as the parameter value.
+
+
+        [LogL_xyF,LogLx_GF,LogLy_GF,LogL_F] = logl_x2d_given_F([A1 A2], FitParsH1, Limits, w, Gx_w, Gy_w, F_t, F_w, sigma_F_hat, sigma_x_hat, DFT, DFT_dagger, LogZ, Gamma_1_x)
+        
     end
-    
+end
+
+
     Limits = [VecTau(Itau), VecTau(Itau); InPar.Limits];
     
     FitParH1 = [VecTau(Itau), InPar.FitPar(1:end)];
