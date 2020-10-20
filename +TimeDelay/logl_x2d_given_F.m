@@ -321,8 +321,8 @@ else
     
     %LogL_xF = LogL_F + (-1./LogZ).*LogL_GF;
     
-    %LogL_xyF = LogL_F + 2.*LogZ + LogLx_GF + LogLy_GF;
-    LogL_xyF = LogL_F + LogZ + LogLx_GF;  % x only
+    LogL_xyF = LogL_F + 2.*LogZ + LogLx_GF + LogLy_GF;
+    %LogL_xyF = LogL_F + LogZ + LogLx_GF;  % x only
     
     LogL_xyF = -LogL_xyF;
     LogLx_GF = -LogLx_GF;

@@ -1,0 +1,49 @@
+function [Sigma_phi,Sigma_F]=sigma_phi(w,Tau,Alpha,Gamma,Epsilon_hat_F)
+% Calculate Sigma_phi and Sigma_F
+% Package: +TimeDelay
+% Description: calculate Sigma_phi and Sigma_F - the expectency value of a
+%              the power spectrum of a system of N time delayed images of
+%              the same source.
+% Input  : - A vector of angular frequencies.
+%          - A vector of time delays of length N-1, where N is the number
+%            of images.
+%          - A vector of \alpha-s, the flux normalization of each source.
+%            The vector lengt should be N.
+%          - Gamma. The minus of the power-law index of the source power
+%            spectrum.
+
+if nargin<5
+    Epsilon_hat_F = 0;
+end
+
+w(1) = 1;
+
+if numel(Tau)~=(numel(Alpha)-1)
+    error('Length of Tau should be equal to length of Alpha -1');
+end
+
+Tau   = [0; Tau(:)];
+Alpha = Alpha(:);
+
+
+Sigma_phi = Alpha(1).^2 + Alpha(2:end).^2 + 
+
+Sum = sum(Alpha.^2);
+Ntau = numel(Tau);
+for Itau1=1:1:Ntau
+    for Itau2=Itau1+1:1:Ntau
+        
+        Sum = Sum + Alpha(Itau1).*Alpha(Itau2).*cos(w.*(Tau(Itau1) - Tau(Itau2)));
+    end
+end
+if numel(Gamma)==1
+    PS = abs(w).^(-Gamma);
+else
+    % Gamma is a power spectrum
+    PS = Gamma;
+end
+Sigma_phi = Sum.*PS;
+
+if nargout>1
+    Sigma_F = Sigma_phi + Epsilon_hat_F.^2;
+end

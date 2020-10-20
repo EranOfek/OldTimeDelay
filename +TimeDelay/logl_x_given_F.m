@@ -1,4 +1,4 @@
-function [LogL_xF,LogL_GF,LogL_F]=logl_x_given_F(Pars, FitPar, Limits, w, G_w, F_t, F_w, sigma_F_hat, sigma_x_hat, DFT, DFT_dagger, LogZ, Gamma_1_)
+function [LogL_xF,LogL_GF,LogL_F]=logl_x_given_F(Pars, FitPar, Limits, w, G_w, F_t, F_w, sigma_F_hat, sigma_x_hat, Min_w, DFT, DFT_dagger, LogZ, Gamma_1_)
 % Return the -logL of x | F - of the astrometric-flux time-delay method
 % Package: +TimeDelay
 % Description: Return the -log(L) of x|F of the astrometric-flux
@@ -6,10 +6,10 @@ function [LogL_xF,LogL_GF,LogL_F]=logl_x_given_F(Pars, FitPar, Limits, w, G_w, F
 %              case.
 %              If no arguments are provided then run in simulation mode.
 % Input  : - A vector of parameters to fit:
-%            [Tau, Alpha0, Alpha1, Alpha2, x0, x1, x2, y0, y1, y2, gamma]
+%            [Tau, Alpha0, Alpha1, Alpha2, x0, x1, x2, gamma]
 %          - A vector of flags indicating which parameter to fit, or to use
 %            as constant. The vector is for the following parameters:
-%            [Tau, Alpha0, Alpha1, Alpha2, x0, x1, x2, y0, y1, y2, gamma]
+%            [Tau, Alpha0, Alpha1, Alpha2, x0, x1, x2, gamma]
 %            If NaN, then fit the parameter, otherwise, don't fit this
 %            parameter and use the value as the parameter value.
 %          - A two column matrix of [lower, upper] bounds on each one of
@@ -22,6 +22,7 @@ function [LogL_xF,LogL_GF,LogL_F]=logl_x_given_F(Pars, FitPar, Limits, w, G_w, F
 %          - sigma_F_hat - error in F_hat.
 %          - sigma_x_hat - error in x_hat and y_hat (assuming they are
 %                          identical).
+%          - min(w) - Default is 2.*pi./100
 %          - DFT - The DFT matrix. If not provided, then the default is:
 %                  fft(eye(N), N, 1) ./ sqrt(N).
 %          - DFT_dagger - The dagger of the DFT matrix. If not provided the
@@ -52,7 +53,7 @@ if nargin==0
     sigma_F_hat = sigma_F;
     sigma_x_hat = sigma_x;
     w = 2.*pi*freqs;
-    DFT = fft(eye(N), N, 1) / sqrt(N);
+    DFT = fft(eye(N), N, 1) ./ sqrt(N);
     DFT_dagger = DFT';
     x0 = 0;
     x1 = params.x_1;
@@ -62,7 +63,7 @@ if nargin==0
     Tau = params.tau;
     Alpha1 = params.alpha_1;
     Alpha2 = params.alpha_2;
-    F_w = fft(F_t) / sqrt(N);
+    F_w = fft(F_t) ./ sqrt(N);
 
     G_t = x_t.*F_t;
     G_w = fft(G_t) ./ sqrt(N);
@@ -135,6 +136,8 @@ else
    
 end
 
+w = w(:).';
+
 
 %[Tau, Alpha0, Alpha1, Alpha2, x0, x1, x2, gamma]
 
@@ -169,19 +172,24 @@ else
 
     N = numel(w);
 
-    if nargin<10
+    if nargin<14
         DFT = fft(eye(N), N, 1) ./ sqrt(N);
-        if nargin<11
-            DFT_dagger = DFT';
+        DFT_dagger = DFT';
+        Gamma_1_ = ((DFT * diag(F_t.^2)) * DFT_dagger) * sigma_x_hat^2;
+        if nargin<13
+            LogZ = sum(log(F_t));
             if nargin<12
-                LogZ = sum(log(F_t));
-                if nargin<13
-                    Gamma_1_ = ((DFT * diag(F_t.^2)) * DFT_dagger) * sigma_x_hat^2;
+                DFT_dagger = DFT';
+                if nargin<11
+                    DFT = fft(eye(N), N, 1) ./ sqrt(N);
+                    if nargin<10
+                        Min_w = 2.*pi./100;
+                    end
                 end
-
             end
         end
     end
+    
 
 
     % parameters should be row vectors
@@ -197,12 +205,18 @@ else
 
     w_ = w;
     w_(1) = 1.0;
-
-
+    
+    if numel(Min_w)==1
+        Flag_w = abs(w)>Min_w;
+    else
+        Flag_w = abs(w)>Min_w(1) & abs(w)<Min_w(2);
+    end
+    
     Sigma_phi_ = (Alpha1.^2 + Alpha2.^2 + 2.*Alpha1.*Alpha2.*cos(w.*Tau)) .* (abs(w_).^(-gamma));
     Sigma_F    = Sigma_phi_ + sigma_F_hat.^2;
     Power_F    = (abs(F_w).^2);
-    LogL_F     = -0.5.*sum(Power_F(2:end) ./ Sigma_F(:,2:end)) - 0.5.*sum(log(2.*pi.*Sigma_F(:,2:end)));
+    %LogL_F     = -0.5.*sum(Power_F(2:end) ./ Sigma_F(:,2:end)) - 0.5.*sum(log(2.*pi.*Sigma_F(:,2:end)));
+    LogL_F     = -0.5.*sum(Power_F(Flag_w) ./ Sigma_F(Flag_w)) - 0.5.*sum(log(2.*pi.*Sigma_F(Flag_w)));
 
     Shrink = sigma_F_hat.^2 ./ (sigma_F_hat.^2 + Sigma_phi_);
     mu_epsilon_F_given_F_ = Shrink .* F_w;
@@ -233,7 +247,7 @@ else
     mu_G_given_F_ = transpose(mu_);
 
     G_minus_mu = G_w - mu_G_given_F_; 
-    G_minus_mu = G_minus_mu(2:end);
+    
     
     %[Gamma_G_given_F_, ~, ~] = Gamma_G_given_F(F_t, F_w, tau, alpha_1, alpha_2);
     %X_hat_ = X_hat_of_F_w(F_w, tau, alpha_1, alpha_2);
@@ -251,10 +265,22 @@ else
     Gamma_G_given_F_ = Gamma_1_ + Gamma_2_;
 
 
-    Gamma_G_given_F_ = Gamma_G_given_F_(2:end, 2:end);
-    inv_Gamma_G_given_F = inv(Gamma_G_given_F_);
+    %G_minus_mu = G_minus_mu(2:end);
+    G_minus_mu = G_minus_mu(Flag_w);
+    
+    %Gamma_G_given_F_ = Gamma_G_givenfalse_F_(2:end, 2:end);
+    Gamma_G_given_F_ = Gamma_G_given_F_(Flag_w, Flag_w);
+    
+    
     logdet_ = TimeDelay.logdet(pi.*Gamma_G_given_F_);
-    mahal = conj(G_minus_mu) * (inv_Gamma_G_given_F * transpose(G_minus_mu));
+    
+    Fast = true;
+    if ~Fast
+        inv_Gamma_G_given_F = inv(Gamma_G_given_F_);
+        mahal = conj(G_minus_mu) * (inv_Gamma_G_given_F * transpose(G_minus_mu));
+    else
+        mahal = conj(G_minus_mu) * (Gamma_G_given_F_\transpose(G_minus_mu));
+    end
     LogL_GF = -real(logdet_) - real(mahal);
     
     %LogL_xF = LogL_F + (-1./LogZ).*LogL_GF;

@@ -66,3 +66,27 @@ TimeDelay.simulate_flux_delay_fit
 
        MAY NEED TO MODIFY THIS
        
+
+
+
+f_DC issue
+------------------
+
+
+How the data is generated?
+
+
+The observed flux F, has error ErrF, mean MeanF, and std StdF.
+
+From the simulations point of view
+we care about:
+
+ErrF/MeanF - i.e., the typical relative error of the measurements.
+StdF/MeanF - i.e., the typical relative amplitude of the variability.
+
+If we simulate the LCs in this way, there is no need to use f_DC,
+but we still need to related this to alpha0.
+
+I think that in this case the only constrain is that:
+
+alpha0+sum(alpha_i) = MeanF   - is this correct?

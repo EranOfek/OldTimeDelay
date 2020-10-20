@@ -1,32 +1,694 @@
 function plots_for_paper
-%%
 
-T = (1:1:240).';
-Nt = numel(T);
-gamma = 3;
+%%  Simulation parameters
 
-f1 = TimeDelay.simulate_lc_from_ps(T,[gamma 1],zeros(Nt,1));
-f1 = f1(:,2);
-
-InPar.A0 = 0;
-InPar.A  = [1 0.5];
-InPar.Tau = 41;
+InPar.Cyclic = false;
 InPar.x0  = 0;
 InPar.y0  = 0;
-InPar.x   = [-1 1];
-InPar.y   = [0 0];
-InPar.StdF = 0.2;
-InPar.eps_x_abs = 0.05;
-InPar.eps_F_rel = 0.05;
+InPar.y   = [0.0  0.0];
+InPar.f_dc = 200;
+InPar.DeltaT  = 1;
+InPar.StdMeanRange = [0.1 0.2];
+
+SimName = 2
+switch SimName
+    case 1
+        InPar.Tau = 20;
+        InPar.A0  = 0;
+        InPar.A   = [1 0.5];
+        InPar.x   = [0.1 -0.4];
+        InPar.Gamma = 3;
+        InPar.TotTime = 1000;
+        InPar.sigma_x = 0.02;
+        InPar.sigma_F_rel = 0.04;
+    case 10
+        InPar.Tau = 20;
+        InPar.A0  = 0;
+        InPar.A   = [1 0.5];
+        InPar.x   = [0.1 -0.4];
+        InPar.Gamma = 3;
+        InPar.TotTime = 1000;
+        InPar.sigma_x = 0.0;
+        InPar.sigma_F_rel = 0.0;
+    case 2
+        InPar.Tau = 20;
+        InPar.A0  = 0;
+        InPar.A   = [1 0.5];
+        InPar.x   = [0.1 -0.4];
+        InPar.Gamma = 3;
+        InPar.TotTime = 1000;
+        InPar.sigma_x = 0.01;
+        InPar.sigma_F_rel = 0.05;
+    case 3
+        InPar.Tau = 50;
+        InPar.A0  = 0;
+        InPar.A   = [1 0.5];
+        InPar.x   = [-0.3 0.7];
+        InPar.Gamma = 3;
+        InPar.TotTime = 500;
+        InPar.sigma_x = 0.01;
+        InPar.sigma_F_rel = 0.05;
+    case 4
+        InPar.Tau = 12;
+        InPar.A0  = 0;
+        InPar.A   = [1 0.5];
+        InPar.x   = [-0.1 0.2];
+        InPar.Gamma = 2.5;
+        InPar.TotTime = 1000;
+        InPar.sigma_x = 0.01;
+        InPar.sigma_F_rel = 0.03;
+        
+   case 5
+        InPar.Tau = 10;
+        InPar.A0  = 0;
+        InPar.A   = [1 0.5];
+        InPar.x   = [-0.1 0.2];
+        InPar.y   = [0.0 0.0];
+        InPar.Gamma = 3;
+        InPar.TotTime = 1000;
+        InPar.sigma_x = 0.01;
+        InPar.sigma_F_rel = 0.05;      
+end
 
 
-ResF=timedelayed_lc(T,f1,'A0',InPar.A0,'A',InPar.A,...
-                         'Tau',InPar.Tau,...
-                         'x0',InPar.x0,'y0',InPar.y0,...
-                         'x',InPar.x,'y',InPar.y,...
-                         'StdF',InPar.StdF',...
-                         'eps_x_abs',InPar.eps_x_abs,'
+%-------------------------------------------
+%% Plot examples for simulated light curves
+%-------------------------------------------
 
-ResF=TimeDelay.timedelayed_lc;
-% Res=TimeDelay.fit_scan_alpha_astrometric_flux(ResF.T, ResF.F_t,ResF.x_t,ResF.y_t,ResF.eps_F_abs,ResF.eps_x_abs,'VecInvTau',(1./70:0.5./256:1./15));
+
+[ResLC,ResG]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                                'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                                'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                                'TotTime',InPar.TotTime,...
+                                'DeltaT',InPar.DeltaT,...
+                                'sigma_x',InPar.sigma_x,...
+                                'sigma_F_rel',InPar.sigma_F_rel,...
+                                'Cyclic',InPar.Cyclic,...
+                                'Validate',true,...
+                                'StdMeanRange',InPar.StdMeanRange);
+                            
+
+%% speed tests
+FitPars    = [20 0 NaN NaN 0 1 -1 3];
+Pars = [1 0.5];
+Limits = [5 100; 0 2; 0 2; 0 2;-1 1; -2 2;-2 2; 1.5 3.5];
+tic;
+[LogL_xF,LogL_GF,LogL_F]=TimeDelay.logl_x_given_F(Pars, FitPars, Limits, ResLC.w, ResG.Gx_w, ResLC.F_t, ResLC.F_w,...
+    ResLC.sigma_F_hat, ResLC.sigma_x_hat,...
+    [2.*pi./200]);
+toc    
+% Return the -logL of x | F - of the astrometric-flux time-delay method
+% Package: +TimeDelay
+
+%%
+plot(ResLC.f1_t)
+hold on;
+plot(ResLC.f2_t)
+plot(ResLC.T,ResLC.F_t,'LineWidth',2)
+
+legend('image 1','image 2','combined');
+H = xlabel('Time [days]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('Flux [arbitrary]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+print Sim_3_LC.eps -depsc2
+%%
+
+
+
+plot(ResLC.x_t,'LineWidth',2,'Color',[0.9 0.7 0.05]);
+hold on;
+plot(ResLC.chi_x_t,'k-','LineWidth',2);
+
+legend('x(t)','\chi(t)','combined');
+H = xlabel('Time [days]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('Position [arcsec]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+print Sim_3_xt.eps -depsc2
+
+%%
+figure(1);
+plot(ResLC.x_t,ResLC.y_t,'.','MarkerSize',8)
+H = xlabel('x(t) [arcsec]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('y(t) [arcsec]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+print Sim5_xt_yt.eps -depsc2
+
+%Gx = ResLC.F_t.*ResLC.x_t;
+%Gy = ResLC.F_t.*ResLC.y_t;
+%figure(2);
+%plot(Gx,Gy,'.')
+
+figure(2);
+mGx = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.x_t-mean(ResLC.x_t));
+mGy = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.y_t-mean(ResLC.y_t));
+plot(mGx,mGy,'.')
+H = xlabel('G$_x$(t) [Flux arcsec]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('G$_y$(t) [Flux arcsec]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+print Sim5_Gx_Gy.eps -depsc2
+
+%plot(ResLC.T,ResLC.x_t)
+%semilogy(ResLC.w,abs(ResLC.F_w))
+
+
+%% Ghat/Fhat example
+
+G = ResLC.F_t.*ResLC.x_t;
+Ghat = fft(G);
+Fhat = fft(ResLC.F_t);
+w    = TimeDelay.fft_freq(numel(ResLC.F_t),1);
+
+Ahat = (InPar.A(1).*InPar.x(1) + InPar.A(2).*InPar.x(2).*exp(1i.*ResLC.w.*InPar.Tau))./ ...
+        (InPar.A(1) + InPar.A(2).*exp(1i.*ResLC.w.*InPar.Tau));
+
+[~,SI] = sort(w);
+semilogy(w(SI),abs(Ghat(SI)./Fhat(SI)));
+hold on
+semilogy(w(SI),abs(Ahat(SI)))
+axis([0 0.25 3e-2 3e0])
+
+
+
+%-------------------------------
+%% Correlations between x and y 
+%-------------------------------
+Nsim = 100;
+NsimC = 1000;
+for Isim=1:1:Nsim
+    Isim
+    [ResLC]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                                'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                                'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                                'TotTime',InPar.TotTime,...
+                                'DeltaT',InPar.DeltaT,...
+                                'sigma_x',InPar.sigma_x,...
+                                'sigma_F_rel',InPar.sigma_F_rel,...
+                                'Cyclic',InPar.Cyclic,...
+                                'Validate',true,...
+                                'StdMeanRange',InPar.StdMeanRange);
+
+    Gx = ResLC.F_t.*ResLC.x_t;
+    Gy = ResLC.F_t.*ResLC.y_t;
+
+    mGx = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.x_t-mean(ResLC.x_t));
+    mGy = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.y_t-mean(ResLC.y_t));
+
+    [MaxC1(Isim),MaxAlpha1(Isim),~,~,ResSim1]=TimeDelay.corr_rotinv(ResLC.x_t, ResLC.y_t, NsimC);
+    [MaxC2(Isim),MaxAlpha2(Isim),~,~,ResSim2]=TimeDelay.corr_rotinv(Gx,        Gy,        NsimC);
+    [MaxC3(Isim),MaxAlpha3(Isim),~,~,ResSim3]=TimeDelay.corr_rotinv(mGx,       mGy,       NsimC);
+    Prob1(Isim) = ResSim1.FAProb;
+    Prob2(Isim) = ResSim2.FAProb;
+    Prob3(Isim) = ResSim3.FAProb;
+    
+    
+end
+
+    
+    
+
+
+%------------------------------------------------------------
+%% Plot: LL(x|F) of Alpha1 vs. Alpha2 given known parameters
+%------------------------------------------------------------
+
+% plot alpha1/alpha2 contours
+% assuming all parameters are known except alpha1/alpha2, shows the
+% confidence interval.
+
+
+
+
+[ResLC]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                                'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                                'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                                'TotTime',InPar.TotTime,...
+                                'DeltaT',InPar.DeltaT,...
+                                'sigma_x',InPar.sigma_x,...
+                                'sigma_F_rel',InPar.sigma_F_rel,...
+                                'Cyclic',InPar.Cyclic,...
+                                'Validate',true,...
+                                'StdMeanRange',InPar.StdMeanRange);
+
+%%
+
+%FitPar = [InPar.A0   InPar.A(1)  InPar.A(2)  InPar.x0   InPar.x(1)   InPar.x(2)   InPar.y0   InPar.y(1)   InPar.y(2)    InPar.Gamma];  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+FitPar = [InPar.A0   InPar.A(1)  InPar.A(2)  InPar.x0   InPar.x(1)   InPar.x(2)    InPar.Gamma];  % [A0, A1, A2, x0, x1, x2, gamma]
+VecA1 = logspace(log10(0.1),log10(10),50);
+VecA2dA1 = logspace(log10(0.05),log10(0.96),50);
+    Gx = ResLC.F_t.*ResLC.x_t;
+    Gy = ResLC.F_t.*ResLC.y_t;
+
+    mGx = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.x_t-mean(ResLC.x_t));
+    mGy = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.y_t-mean(ResLC.y_t));
+
+
+Res=TimeDelay.fit_scan_alpha_astrometric_flux(ResLC.T, ResLC.F_t, ResLC.x_t, ResLC.sigma_F_hat, ResLC.sigma_x_hat,...
+                    'Tau',InPar.Tau,'FitPar',FitPar,'VecA1',VecA1,'VecA2dA1',VecA2dA1,'Min_w',2.*pi./300);
+                
+
+%%
+figure(1);
+Data = Res.LL_xF;
+Min=min(Data(:));
+GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
+Npar = 2;
+Level = chi2inv(GaussProb,Npar);
+contour(Res.A1,Res.A2dA1,Data'-Min,Level);
+H=colorbar;
+H.Label.String = '$\Delta$ ln[$\mathcal{L}$(x,F)]';
+H.Label.Interpreter = 'latex';
+H = xlabel('$\alpha_{1}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('$\alpha_{2}$/$\alpha_{1}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+set(gca,'XS','log','YS','log')
+set(gca,'XTick',[0.1 0.3 1 3 10]);
+set(gca,'YTick',[0.05 0.1 0.3 0.5 0.9]);
+
+print Sim1_LLxF_A1vsA2A1_p_20_0_1_05_0_p01_m04_3.eps -depsc2
+
+%
+figure(2);
+Data = Res.LL_GF;
+Min=min(Data(:));
+GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
+Npar = 2;
+Level = chi2inv(GaussProb,Npar);
+contour(Res.A1,Res.A2dA1,Data'-Min,Level);
+H=colorbar;
+H.Label.String = '$\Delta$ ln[$\mathcal{L}$(G$|$F)]';
+H.Label.Interpreter = 'latex';
+H = xlabel('$\alpha_{1}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('$\alpha_{2}$/$\alpha_{1}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+set(gca,'XS','log','YS','log')
+set(gca,'XTick',[0.1 0.3 1 3 10]);
+set(gca,'YTick',[0.05 0.1 0.3 0.5 0.9]);
+
+print Sim1_LLGF_A1vsA2A1_p_20_0_1_05_0_p01_m04_3.eps -depsc2
+
+
+%
+figure(3);
+Data = Res.LL_F;
+Min=min(Data(:));
+GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
+Npar = 2;
+Level = chi2inv(GaussProb,Npar);
+contour(Res.A1,Res.A2dA1,Data'-Min,Level);
+H=colorbar;
+H.Label.String = '$\Delta$ ln[$\mathcal{L}$(F)]';
+H.Label.Interpreter = 'latex';
+H = xlabel('$\alpha_{1}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('$\alpha_{2}$/$\alpha_{1}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+set(gca,'XS','log','YS','log')
+set(gca,'XTick',[0.1 0.3 1 3 10]);
+set(gca,'YTick',[0.05 0.1 0.3 0.5 0.9]);
+
+print Sim1_LLF_A1vsA2A1_p_20_0_1_05_0_p01_m04_3.eps -depsc2
+
+
+%----------------------
+%% senstivity to gamma
+%----------------------
+
+GammaVec = [3, 2.0, 2.5, 2.8, 3.2, 3.5];
+Ng  = numel(GammaVec);
+
+
+
+VecInvTau = [(1./100:1./200:1./5)];
+VecInvTau = sort([VecInvTau, 1./20]);
+
+FitPar = [NaN       NaN         NaN           InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
+DefPar = [InPar.A0  InPar.A(1)  InPar.A(2)    InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
+
+
+
+[ResLC]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                            'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                            'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                            'TotTime',InPar.TotTime,...
+                            'DeltaT',InPar.DeltaT,...
+                            'sigma_x',InPar.sigma_x,...
+                            'sigma_F_rel',InPar.sigma_F_rel,...
+                            'Cyclic',InPar.Cyclic,...
+                            'Validate',true,...
+                            'StdMeanRange',InPar.StdMeanRange);
+
+std(ResLC.F_t)./mean(ResLC.F_t)
+
+for Ig=1:1:Ng    
+    tic;
+
+    FitPar(end) = GammaVec(Ig);
+    DefPar(end) = GammaVec(Ig);
+    
+    Res(Ig) = TimeDelay.fit_astrometric_flux(ResLC.T,ResLC.F_t,ResLC.x_t,ResLC.y_t,ResLC.sigma_F_hat,ResLC.sigma_x_hat,...
+                                         'TwoD',false,...
+                                         'DefPar',DefPar,...
+                                         'FitPar',FitPar,...
+                                         'Min_w',[2.*pi./200],...
+                                         'VecInvTau',VecInvTau);
+    toc
+    
+    
+end
+    
+
+save -v7.3 Res_sensitivity.mat Res ResLC GammaVec
+
+
+for I=1:1:numel(Res)
+    plot(1./Res(I).Tau,Res(I).LL_H1-Res(I).LL_H0)
+    hold on;
+end
+axis([0 0.2 -700 500])
+plot([0 0.2],[0 0],'k--')
+legend('3.0','2.0','2.5','2.8','3.2','3.5','H_{0}','Location','NorthEast');
+
+H = xlabel('$\tau$ [day]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('$-\ln{\mathcal{L}(x,F,|\tau,\alpha_0,\alpha_1,\alpha_2)}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+print Sim2_gammaSensitivity.eps -depsc2
+
+
+%-------------------------
+%% The effect of tapering
+%-------------------------
+
+
+
+VecInvTau = [(1./50:1./50:1./5)];
+VecInvTau = sort([VecInvTau, 1./20]);
+Nsim = 1
+
+FitPar = [NaN       NaN         NaN           InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
+DefPar = [InPar.A0  InPar.A(1)  InPar.A(2)    InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
+
+
+
+clear Res
+clear ResLC
+clear AllLC
+
+
+[ResLC]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                                'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                                'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                                'TotTime',InPar.TotTime,...
+                                'DeltaT',InPar.DeltaT,...
+                                'sigma_x',InPar.sigma_x,...
+                                'sigma_F_rel',InPar.sigma_F_rel,...
+                                'Cyclic',InPar.Cyclic,...
+                                'Validate',true,...
+                                'StdMeanRange',InPar.StdMeanRange);
+
+std(ResLC.F_t)./mean(ResLC.F_t)
+
+
+Tapering = {[0],[2.*pi./200],[2.*pi./200 2.*pi./2],[2.*pi./200 0.15],[2.*pi./200 0.1]};
+Nt = numel(Tapering);
+for It=1:1:Nt
+    tic;
+    Res(It) = TimeDelay.fit_astrometric_flux(ResLC.T,ResLC.F_t,ResLC.x_t,ResLC.y_t,ResLC.sigma_F_hat,ResLC.sigma_x_hat,...
+                                         'TwoD',false,...
+                                         'DefPar',DefPar,...
+                                         'FitPar',FitPar,...
+                                         'Min_w',Tapering{It},...
+                                         'VecInvTau',VecInvTau);
+    toc
+end
+
+
+for I=1:1:numel(Res)
+    plot(Res(I).Tau,Res(I).LL_H1-Res(I).LL_H0)
+    hold on;
+end
+
+%-----------------------------------
+%% Fit TimeDelay with unknown A0/A1/A2
+%-----------------------------------    
+
+
+VecInvTau = [(1./50:1./50:1./5)];
+VecInvTau = sort([VecInvTau, 1./20]);
+Nsim = 1
+
+FitPar = [NaN       NaN         NaN           InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
+DefPar = [InPar.A0  InPar.A(1)  InPar.A(2)    InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
+
+
+
+clear Res
+clear ResLC
+clear AllLC
+for Isim=1:1:Nsim
+    [Isim, Nsim]
+    [ResLC]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                                'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                                'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                                'TotTime',InPar.TotTime,...
+                                'DeltaT',InPar.DeltaT,...
+                                'sigma_x',InPar.sigma_x,...
+                                'sigma_F_rel',InPar.sigma_F_rel,...
+                                'Cyclic',InPar.Cyclic,...
+                                'Validate',true,...
+                                'StdMeanRange',InPar.StdMeanRange);
+
+    std(ResLC.F_t)./mean(ResLC.F_t)
+    tic;
+    Res(Isim) = TimeDelay.fit_astrometric_flux(ResLC.T,ResLC.F_t,ResLC.x_t,ResLC.y_t,ResLC.sigma_F_hat,ResLC.sigma_x_hat,...
+                                         'TwoD',false,...
+                                         'DefPar',DefPar,...
+                                         'FitPar',FitPar,...
+                                         'Min_w',[2.*pi./200],...
+                                         'VecInvTau',VecInvTau);
+    toc
+    AllLC(Isim) = ResLC;                                 
+end
+
+%save -v7.3 Res.mat Res ResLCa
+
+% the fitted parameters distribution
+OutBestPar = zeros(Nsim,sum(isnan(FitPar)));
+DeltaL     = zeros(Nsim,1);
+BestTau    = zeros(Nsim,1);
+
+for Isim=1:1:Nsim
+    [~,MinI] = min(abs(Res(Isim).Tau - InPar.Tau));
+    [DeltaL(Isim),MinItau] = min(Res(Isim).LL_H1-Res(Isim).LL_H0);
+    BestTau(Isim)  = Res(Isim).Tau(MinItau);
+    OutBestPar(Isim,:) = Res(Isim).BestPar_H1(MinI,:);
+end
+
+%save -v7.3 Res_A012.mat Res OutBestPar AllLC
+
+for I=1:1:numel(Res)
+    plot(1./Res(I).Tau,Res(I).LL_H1-Res(I).LL_H0)
+    hold on;
+end
+axis([0.02 0.2 -800 200]);
+
+H = xlabel('$1/\tau$ [day$^{-1}$]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('$-\ln{\mathcal{L}(x,F,|\tau,\alpha_0,\alpha_1,\alpha_2)}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+print Sim2_LogL_A0A1A2.eps -depsc2
+
+%%
+Flag=OutBestPar(:,1)>1;
+Flag=DeltaL(:,1)>-chi2inv(0.9973,2)./2;
+plot(OutBestPar(~Flag,2),OutBestPar(~Flag,3)./OutBestPar(~Flag,2),'.','MarkerSize',10)
+hold on
+plot(OutBestPar(Flag,2),OutBestPar(Flag,3)./OutBestPar(Flag,2),'.','MarkerSize',10)   
+ 
+H = xlabel('$\alpha_2$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('$\alpha_2/\alpha_1$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+print Sim2_LogL_A0A1A2_ParsA1A2.eps -depsc2
+
+%%
+
+H = plot(1./BestTau,DeltaL,'.');
+axis([0.02 0.21 -800 600]);
+H = xlabel('$1/\tau$ [day$^{-1}$]');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+H = ylabel('$-\Delta{\ln{\mathcal{L}}}$');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+
+[Hh]=plot.hist_ofplot('NbinX',20,'NbinY',20)
+
+print Sim2_LogL_vsBestTau.eps -depsc2
+
+
+%-----------------------------------
+%% Fit TimeDelay with unknown A0/A1/A2,x0,
+%-----------------------------------
+
+
+VecInvTau = [(1./50:1./120:1./10)];
+Nsim = 1;
+
+FitPar = [NaN       NaN         NaN           NaN        InPar.x(1)    InPar.x(2)    InPar.Gamma];
+DefPar = [InPar.A0  InPar.A(1)  InPar.A(2)    InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
+
+
+RAD = 180./pi;
+VecRot = [0 30 60 90]./RAD;
+Nrot   = numel(VecRot);
+
+clear Res
+clear ResLC
+clear AllLC
+for Isim=1:1:Nsim
+    
+    
+    [ResLC]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                                'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                                'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                                'TotTime',InPar.TotTime,...
+                                'DeltaT',InPar.DeltaT,...
+                                'sigma_x',InPar.sigma_x,...
+                                'sigma_F_rel',InPar.sigma_F_rel,...
+                                'Cyclic',InPar.Cyclic,...
+                                'Validate',true,...
+                                'StdMeanRange',InPar.StdMeanRange);
+
+    std(ResLC.F_t)./mean(ResLC.F_t)
+    
+    for Irot=1:1:Nrot
+        
+        Theta = VecRot(Irot);
+        RotMat = [cos(Theta), -sin(Theta); sin(Theta), cos(Theta)];
+        XY     = RotMat * [ResLC.x_t(:).'; ResLC.y_t(:).'];
+        
+        LCX    = XY(1,:).';
+        LCY    = XY(2,:).';
+        
+    
+        tic;
+        Res(Isim,Irot) = TimeDelay.fit_astrometric_flux(ResLC.T,ResLC.F_t, LCX, LCY, ResLC.sigma_F_hat,ResLC.sigma_x_hat,...
+                                             'TwoD',false,...
+                                             'DefPar',DefPar,...
+                                             'FitPar',FitPar,...
+                                             'VecInvTau',VecInvTau);
+        toc
+    end
+    AllLC(Isim) = ResLC;                                 
+end
+
+%save -v7.3 Res.mat Res ResLCa
+
+% the fitted parameters distribution
+OutBestPar = zeros(Nsim,sum(isnan(FitPar)));
+for Isim=1:1:Nsim
+    [~,MinI] = min(abs(Res(Isim).Tau - InPar.Tau));
+    OutBestPar(Isim,:) = Res(Isim).BestPar_H1(MinI,:);
+end
+
+Nr = numel(Res);
+for Ir=1:1:Nr
+    plot(Res(Ir).Tau,Res(Ir).LL_H1-Res(Ir).LL_H0);
+    hold on;
+end
+
+
+
+%-----------------------------------
+%% Fit TimeDelay with unknown A0/A1/A2,x0,x1,x2,y,y2
+%-----------------------------------
+
+
+VecInvTau = [(1./30:1./250:1./10)];
+Nsim = 1;
+
+TwoD = true;
+FitPar = [NaN       NaN        NaN         NaN      NaN        NaN         NaN       NaN        NaN        InPar.Gamma];
+FitPar = [InPar.A0  NaN        NaN         InPar.x0 InPar.x(1) InPar.x(2)  InPar.y0  InPar.y(1) InPar.y(2) InPar.Gamma];
+DefPar = [InPar.A0  InPar.A(1) InPar.A(2)  InPar.x0 InPar.x(1) InPar.x(2)  InPar.y0  InPar.y(1) InPar.y(2) InPar.Gamma];
+Limits = [0 3; 1e-5 5;0 5;  -1 1; -2.1 2.1;-2.1 2.1;   -1 1; -2.1 2.1;-2.1 2.1;   1.5 3.5]
+
+TwoD = false;
+FitPar = [NaN       NaN        NaN         NaN      NaN        NaN              InPar.Gamma];
+FitPar = [InPar.A0  NaN        NaN         InPar.x0 InPar.x(1) InPar.x(2)       InPar.Gamma];
+DefPar = [InPar.A0  InPar.A(1) InPar.A(2)  InPar.x0 InPar.x(1) InPar.x(2)       InPar.Gamma];
+Limits = [0 3; 1e-5 5;0 5;  -1 1; -2.1 2.1;-2.1 2.1;      1.5 3.5]
+
+
+clear Res
+clear ResLC
+clear AllLC
+for Isim=1:1:Nsim
+    
+    [ResLC]=TimeDelay.rand_lensed('A0',InPar.A0,'A',InPar.A,'Tau',InPar.Tau,...
+                                'x0',InPar.x0,'y0',InPar.y0,'x',InPar.x,'y',InPar.y,...
+                                'f_dc',InPar.f_dc,'Gamma',InPar.Gamma,...
+                                'TotTime',InPar.TotTime,...
+                                'DeltaT',InPar.DeltaT,...
+                                'sigma_x',InPar.sigma_x,...
+                                'sigma_F_rel',InPar.sigma_F_rel,...
+                                'Cyclic',InPar.Cyclic,...
+                                'Validate',true,...
+                                'StdMeanRange',InPar.StdMeanRange);
+
+    std(ResLC.F_t)./mean(ResLC.F_t)
+    tic;
+    Res(Isim) = TimeDelay.fit_astrometric_flux(ResLC.T,ResLC.F_t,ResLC.x_t,ResLC.y_t,ResLC.sigma_F_hat,ResLC.sigma_x_hat,...
+                                         'TwoD',TwoD,...
+                                         'DefPar',DefPar,...
+                                         'FitPar',FitPar,...
+                                         'Limits',Limits,...
+                                         'VecInvTau',VecInvTau);
+    toc
+    AllLC(Isim) = ResLC;                                 
+end
+
+%save -v7.3 Res.mat Res ResLCa
+
+% the fitted parameters distribution
+OutBestPar = zeros(Nsim,sum(isnan(FitPar)));
+for Isim=1:1:Nsim
+    [~,MinI] = min(abs(Res(Isim).Tau - InPar.Tau));
+    OutBestPar(Isim,:) = Res(Isim).BestPar_H1(MinI,:);
+end
+
+plot(Res.Tau,Res.LL_H1-Res.LL_H0)
 

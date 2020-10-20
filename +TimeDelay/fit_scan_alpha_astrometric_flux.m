@@ -1,4 +1,4 @@
-function [Res]=fit_scan_alpha_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
+function [Res]=fit_scan_alpha_astrometric_flux(t,F_t,x_t,sigma_F,sigma_x,varargin)
 % Fit the 2 images astrometric-flux time delay model to observations
 % Package: +TimeDelay
 % Description:
@@ -13,20 +13,19 @@ function [Res]=fit_scan_alpha_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,var
 %            'Solver' - Either @Util.fit.fminsearch_my | @Util.fit.fminunc_my
 %                       Default is @Util.fit.fminunc_my
 %            'FitPar' - The list of parameters to fit.
-%                       [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+%                       [A0, A1, A2, x0, x1, x2, gamma]
 %                       If NaN, then will attempt to fit the parameter.
 %                       Default is 
 %                       [NaN NaN NaN  NaN NaN NaN  NaN NaN NaN  3]
 %            'DefPar' - The list of initial guess to use, or the parameter
 %                       value if not fitted. Default is
-%                       [2 1   0.66  0   1   -1   0   0   0    3]
+%                       [2 1   0.66  0   1   -1      3]
 %            'Limits' - A two column matrix of [lower, upper] bounds on the
 %                       parameters. Default is
-%                       [0 5;0 2;0 2;  -1 1; -2.1 2.1; -2.1 2.1;  -1 1; -2.1 2.1; -2.1 2.1;   1.5 3.5]
-%            'TwoD'   - A logical indicate if to perform 2-D fit.
-%                       Default is true.
+%                       [0 5;0 2;0 2;  -1 1; -2.1 2.1; -2.1 2.1;  -1 1;    1.5 3.5]
 %            'VecInvTau' - A vector of 1/time_delay to attempt fitting.
 %                       Default is (1./100:0.5./100:1./10)
+%            'Min_w' - minimum w. Default 2.*pi./100.
 %            'Verbose' - Default is true.
 % Output : - An output structure containing the following fields:
 %            .Tau 
@@ -44,100 +43,39 @@ NPAR1D = 8 -1;
 
 InPar = inputParser;
 addOptional(InPar,'Solver',@Util.fit.fminunc_my);
-addOptional(InPar,'FitPar',[0 1   0.66  0   1   -1   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-addOptional(InPar,'Limits',[0 20;0 10;0 10;  -1 1; -2.1 2.1; -2.1 2.1;  -1 1; -2.1 2.1; -2.1 2.1;   1.5 3.5]); %  without Tau
-addOptional(InPar,'VecA1',(0.5:0.05:1.5));
-addOptional(InPar,'VecA2dA1',(0.4:0.05:1));
+addOptional(InPar,'FitPar',[0 1   0.66  0   1   -1      3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+addOptional(InPar,'Limits',[0 20;1e-5 10;0 10;  -1 1; -2.1 2.1; -2.1 2.1;   1.5 3.5]); %  without Tau
+addOptional(InPar,'VecA1',logspace(log10(0.01),log10(1),40)); %  (0.5:0.05:1.5));
+addOptional(InPar,'VecA2dA1',(0.3:0.05:1));
 
 addOptional(InPar,'Tau',14.7); 
+addOptional(InPar,'Min_w',2.*pi./100); 
 addOptional(InPar,'Verbose',true);
 parse(InPar,varargin{:});
 InPar = InPar.Results;
 
 
-if nargin==0
-    params = jsondecode(fileread('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/sims_4.json'));
+% Input arguments: t,F_t,x_t,y_t,sigma_F,sigma_x
 
-    t   = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/t.txt')';
-    F_t = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/F_t.txt')';
-    x_t = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/x_t.txt')';
-    N = length(F_t);
-
-    sigma_x = params.sigma_x_prop * abs(params.x_1 - params.x_2);
-    sigma_F = params.sigma_F_prop * params.f_dc;
-
-    
-    freqs = TimeDelay.fft_freq(N, params.t_step);
-
-    gamma = params.gamma;
-    sigma_F_hat = sigma_F;
-    sigma_x_hat = sigma_x;
-    w = 2.*pi*freqs;
-    DFT = fft(eye(N), N, 1) / sqrt(N);
-    DFT_dagger = DFT';
-    x0 = 0;
-    x1 = params.x_1;
-    x2 = params.x_2;
-    Alpha0 = params.alpha_0;
-
-    Tau = params.tau;
-    Alpha1 = params.alpha_1;
-    Alpha2 = params.alpha_2;
-    F_w = fft(F_t) / sqrt(N);
-
-    Gx_t = x_t.*F_t;
-    Gx_w = fft(Gx_t) ./ sqrt(N);
-
-    y_t = randn(size(x_t)).*sigma_x;
-    sigma_y = sigma_x;
-    sigma_y_hat = sigma_y;
-    
-    Gy_t = y_t.*F_t;
-    Gy_w = fft(Gy_t) ./ sqrt(N);
-
-    y0 = 0;
-    y1 = 0;
-    y2 = 0;
-    LogZ = sum(log(F_t));
-   
-    
-else
-    % Input arguments: t,F_t,x_t,y_t,sigma_F,sigma_x
-    
-    N = length(F_t);
-    t_step = unique(diff(t));
-    if numel(t_step)>1
-        error('Time series must be equally spaced');
-    end
-    
-    freqs = TimeDelay.fft_freq(N, t_step);
-
-    sigma_F_hat = sigma_F;
-    sigma_x_hat = sigma_x;
-    w = 2.*pi*freqs;
-    
-    %x0 = 0;
-    %x1 = params.x_1;
-    %x2 = params.x_2;
-    %Alpha0 = params.alpha_0;
-
-    %Tau = params.tau;
-    %Alpha1 = params.alpha_1;
-    %Alpha2 = params.alpha_2;
-    
-    %F_t = F_t - mean(F_t);
-    
-    F_w = fft(F_t) / sqrt(N);
-    Gx_t = x_t.*F_t;
-    Gx_w = fft(Gx_t) ./ sqrt(N);
-    Gy_t = y_t.*F_t;
-    Gy_w = fft(Gy_t) ./ sqrt(N);
-
-    
-    sigma_y = sigma_x;
-    sigma_y_hat = sigma_y;
-    
+N = length(F_t);
+t_step = unique(diff(t));
+if numel(t_step)>1
+    error('Time series must be equally spaced');
 end
+
+freqs = TimeDelay.fft_freq(N, t_step);
+
+sigma_F_hat = sigma_F;
+sigma_x_hat = sigma_x;
+w = 2.*pi*freqs;
+
+F_w = fft(F_t) ./ sqrt(N);
+Gx_t = x_t.*F_t;
+Gx_w = fft(Gx_t) ./ sqrt(N);
+%Gy_t = y_t.*F_t;% In order 
+%Gy_w = fft(Gy_t) ./ sqrt(N);
+
+    
 
 %% Main Fitter 
 
@@ -149,21 +87,6 @@ LogZ = sum(log(F_t));
 Gamma_1_ = ((DFT * diag(F_t.^2)) * DFT_dagger) * sigma_x_hat^2;
 
 
-% verify the size of FitPar and DefPar
-% if InPar.TwoD
-%     if ~(numel(InPar.FitPar)==NPAR2D && numel(InPar.DefPar)==NPAR2D && size(InPar.Limits,1)==NPAR2D)
-%         error('For 2D fitting Limits, FitPar and DefPar must contain %d elements',NPAR2D);
-%     end
-% else
-%     if ~(numel(InPar.FitPar)==NPAR1D && numel(InPar.DefPar)==NPAR1D && size(InPar.Limits,1)==NPAR1D)
-%         error('For 1D fitting Limits, FitPar and DefPar must contain %d elements',NPAR1D);
-%     end
-% end
-
-
-    
-FlagN       = isnan(InPar.FitPar);
-
 
 Limits = [InPar.Tau, InPar.Tau; InPar.Limits];
 FitParsH1 = [InPar.Tau, InPar.FitPar(1:end)];
@@ -174,7 +97,9 @@ Na2 = numel(InPar.VecA2dA1);
 %Res.LL_H0  = nan(Ntau,1);
 Res.A1     = InPar.VecA1;
 Res.A2dA1  = InPar.VecA2dA1;
-Res.LL_H1  = nan(Na1,Na2);
+Res.LL_xF  = nan(Na1,Na2);
+Res.LL_GF  = nan(Na1,Na2);
+Res.LL_F   = nan(Na1,Na2);
 
 Na1.*Na2
 
@@ -184,9 +109,12 @@ for Ia1=1:1:Na1
         A1 = InPar.VecA1(Ia1);
         A2 = A1.*InPar.VecA2dA1(Ia2);
         
-        [LogL_xyF,LogLx_GF,LogLy_GF,LogL_F] = TimeDelay.logl_x2d_given_F([A1 A2], FitParsH1, Limits, w, Gx_w, Gy_w, F_t, F_w,...
-            sigma_F_hat, sigma_x_hat, DFT, DFT_dagger, LogZ, Gamma_1_);
-        Res.LL_H1(Ia1,Ia2) = LogL_xyF;
+        [LogL_xF,LogLx_GF,LogL_F] = TimeDelay.logl_x_given_F([A1 A2], FitParsH1, Limits, w, Gx_w, F_t, F_w,...
+                                                     sigma_F_hat, sigma_x_hat, InPar.Min_w, DFT, DFT_dagger, LogZ, Gamma_1_);
+                
+        Res.LL_xF(Ia1,Ia2) = LogL_xF;
+        Res.LL_GF(Ia1,Ia2) = LogLx_GF;
+        Res.LL_F(Ia1,Ia2)  = LogL_F;
         
     end
 end

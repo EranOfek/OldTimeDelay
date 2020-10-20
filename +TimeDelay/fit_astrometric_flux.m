@@ -27,6 +27,7 @@ function [Res]=fit_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
 %                       Default is true.
 %            'VecInvTau' - A vector of 1/time_delay to attempt fitting.
 %                       Default is (1./100:0.5./100:1./10)
+%            'Min_w'   - Minimum w. Default is 2.*pi./100.
 %            'Verbose' - Default is true.
 % Output : - An output structure containing the following fields:
 %            .Tau 
@@ -38,6 +39,9 @@ function [Res]=fit_astrometric_flux(t,F_t,x_t,y_t,sigma_F,sigma_x,varargin)
 %          ResF=TimeDelay.timedelayed_lc;
 % Res=TimeDelay.fit_astrometric_flux(ResF.T,ResF.F_t,ResF.x_t,ResF.y_t,ResF.eps_F_abs,ResF.eps_x_abs);
 
+% [ResLC]=TimeDelay.rand_lensed;
+
+% Res = TimeDelay.fit_astrometric_flux(ResLC.T,ResLC.F_t,ResLC.x_t,ResLC.y_t,ResLC.sigma_F_hat,ResLC.sigma_x_hat);
 
 
 NPAR2D = 11 -1;
@@ -48,17 +52,21 @@ addOptional(InPar,'Solver',@Util.fit.fminunc_my);
 %addOptional(InPar,'FitPar',[NaN NaN NaN  NaN NaN NaN  NaN NaN NaN  3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
 %addOptional(InPar,'FitPar',[0 NaN NaN  NaN   NaN   NaN   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
 
-addOptional(InPar,'FitPar',[0 NaN   NaN   0   1   -1   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-addOptional(InPar,'DefPar',[0 1     0.66  0   1   -1   0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+%addOptional(InPar,'FitPar',[0 NaN   NaN   0   0.4   -0.2    0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+%addOptional(InPar,'DefPar',[0 1     0.66   0     0.4   -0.2  0   0   0    3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+%addOptional(InPar,'Limits',[0 3; 0 5;0 5;  -1 1; -2.1 2.1; -2.1 2.1;  -1 1; -2.1 2.1; -2.1 2.1;   1.5 3.5]); %  without Tau
 
-addOptional(InPar,'Limits',[0 3; 0 5;0 5;  -1 1; -2.1 2.1; -2.1 2.1;  -1 1; -2.1 2.1; -2.1 2.1;   1.5 3.5]); %  without Tau
+addOptional(InPar,'FitPar',[0 NaN   NaN      0   1   -1        3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+addOptional(InPar,'DefPar',[0 1     0.66     0   1   -1        3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+addOptional(InPar,'Limits',[0 3; 1e-5 5;0 5;  -1 1; -2.1 2.1; -2.1 2.1;     1.5 3.5]); %  without Tau
 
 %addOptional(InPar,'FitPar',[NaN NaN NaN  NaN  NaN NaN   3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
-%addOptional(InPar,'DefPar',[2 1   0.66  0   1   -1       3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
+%addOptional(InPar,'DefPar',[0 1   0.66  0   1   -1       3]);  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
 %addOptional(InPar,'Limits',[0 5;0 2;0 2;  -1 1; -2.1 2.1; -2.1 2.1;    1.5 3.5]); %  without Tau
 
-addOptional(InPar,'TwoD',true);
-addOptional(InPar,'VecInvTau',1./(8.7:1:19.7)); %(2./100:0.5./100:1./10));  % sign has meaning!
+addOptional(InPar,'TwoD',false);
+addOptional(InPar,'VecInvTau',(1./100:0.5./240:1./10)); %1./(20:1:33)); %1./(10.7:1:18.7)); %(2./100:0.5./100:1./10));  % sign has meaning!
+addOptional(InPar,'Min_w',2.*pi./100);
 addOptional(InPar,'Verbose',true);
 parse(InPar,varargin{:});
 InPar = InPar.Results;
@@ -68,11 +76,12 @@ InPar.DefPar = [InPar.DefPar];
 
 
 if nargin==0
-    params = jsondecode(fileread('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/sims_4.json'));
+    %params = jsondecode(fileread('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/sims_4.json'));
+    params = jsondecode(fileread('/raid/eran/projects/Algorithms/AstrometricTimeDelay/OferData/sims_4.json'));
 
-    t   = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/t.txt')';
-    F_t = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/F_t.txt')';
-    x_t = load('/home/eran/matlab/TimeDelay/Ofer/qtd_sim_4/output_txt/sims_4/x_t.txt')';
+    t   = load('/raid/eran/projects/Algorithms/AstrometricTimeDelay/OferData/t.txt')';
+    F_t = load('/raid/eran/projects/Algorithms/AstrometricTimeDelay/OferData/F_t.txt')';
+    x_t = load('/raid/eran/projects/Algorithms/AstrometricTimeDelay/OferData/x_t.txt')';
     N = length(F_t);
 
     sigma_x = params.sigma_x_prop * abs(params.x_1 - params.x_2);
@@ -139,7 +148,7 @@ else
     
     %F_t = F_t - mean(F_t);
     
-    F_w = fft(F_t) / sqrt(N);
+    F_w = fft(F_t) ./ sqrt(N);
     Gx_t = x_t.*F_t;
     Gx_w = fft(Gx_t) ./ sqrt(N);
     Gy_t = y_t.*F_t;
@@ -159,7 +168,6 @@ DFT = fft(eye(N), N, 1) ./ sqrt(N);
 DFT_dagger = DFT';
 LogZ = sum(log(F_t));
 Gamma_1_ = ((DFT * diag(F_t.^2)) * DFT_dagger) * sigma_x_hat^2;
-
 
 % verify the size of FitPar and DefPar
 if InPar.TwoD
@@ -237,6 +245,7 @@ for Itau=1:1:Ntau
         [Res.BestPar_H1(Itau,:),Res.LL_H1(Itau)]=InPar.Solver({@TimeDelay.logl_x_given_F, ...
                                          FitParH1, Limits, w, Gx_w, F_t, F_w, ...
                                          sigma_F_hat, sigma_x_hat, ...
+                                         InPar.Min_w,...
                                          DFT, DFT_dagger, LogZ, Gamma_1_},...
                                         BestGuessH1,AddPars{:});
 
@@ -245,6 +254,7 @@ for Itau=1:1:Ntau
         [Res.BestPar_H0(Itau,:),Res.LL_H0(Itau)]=InPar.Solver({@TimeDelay.logl_x_given_F, ...
                                          FitParH0, Limits, w, Gx_w, F_t, F_w, ...
                                          sigma_F_hat, sigma_x_hat, ...
+                                         InPar.Min_w,...
                                          DFT, DFT_dagger, LogZ, Gamma_1_},...
                                         BestGuessH0,AddPars{:});
 

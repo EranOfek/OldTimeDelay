@@ -4,7 +4,7 @@ function Freq=fft_freq(N, D)
 % Input  : - Number of data points
 %          - Delta time.
 % Output : - Vector of frequencies.
-% Example: Freq=fft_freq(5, 1);
+% Example: Freq=TimeDelay.fft_freq(5, 1);
 
 
 if mod(N, 2) == 0

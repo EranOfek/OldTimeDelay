@@ -20,8 +20,8 @@ function ResF=timedelayed_lc(T,f1,varargin)
 
 InPar = inputParser;
 addOptional(InPar,'A0',0);
-addOptional(InPar,'A',[1 0.66]); %2./3]);
-addOptional(InPar,'Tau',[14.7]);   % all positive!
+addOptional(InPar,'A',[1 0.5]); %2./3]);
+addOptional(InPar,'Tau',[15.7]);   % all positive!
 addOptional(InPar,'x0',0);  
 addOptional(InPar,'y0',0);  
 addOptional(InPar,'x',[1 -1]); %[-1 1]);  
