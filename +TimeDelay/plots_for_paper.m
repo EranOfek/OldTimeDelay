@@ -39,6 +39,16 @@ switch SimName
         InPar.TotTime = 1000;
         InPar.sigma_x = 0.01;
         InPar.sigma_F_rel = 0.05;
+    case 200
+        % 2 H0
+        InPar.Tau = 0;
+        InPar.A0  = 0;
+        InPar.A   = [1 0.0];
+        InPar.x   = [0 0];
+        InPar.Gamma = 3;
+        InPar.TotTime = 1000;
+        InPar.sigma_x = 0.01;
+        InPar.sigma_F_rel = 0.05;
     case 3
         InPar.Tau = 50;
         InPar.A0  = 0;
@@ -88,25 +98,21 @@ end
                                 'StdMeanRange',InPar.StdMeanRange);
                             
 
-%% speed tests
-FitPars    = [20 0 NaN NaN 0 1 -1 3];
-Pars = [1 0.5];
-Limits = [5 100; 0 2; 0 2; 0 2;-1 1; -2 2;-2 2; 1.5 3.5];
-tic;
-[LogL_xF,LogL_GF,LogL_F]=TimeDelay.logl_x_given_F(Pars, FitPars, Limits, ResLC.w, ResG.Gx_w, ResLC.F_t, ResLC.F_w,...
-    ResLC.sigma_F_hat, ResLC.sigma_x_hat,...
-    [2.*pi./200]);
-toc    
-% Return the -logL of x | F - of the astrometric-flux time-delay method
-% Package: +TimeDelay
 
 %%
-plot(ResLC.f1_t)
-hold on;
-plot(ResLC.f2_t)
-plot(ResLC.T,ResLC.F_t,'LineWidth',2)
 
-legend('image 1','image 2','combined');
+plot(ResLC.T,ResLC.F_t,'LineWidth',3)
+hold on;
+
+f_t=TimeDelay.reconstruct_ft(ResLC.F_t,ResLC.x_t,InPar.x0,InPar.x,InPar.A0,InPar.A(1),ResLC.sigma_F_hat,ResLC.sigma_x_hat);
+plot(f_t,'Color',[0.8 0.8 0.8],'LineWidth',3);
+
+plot(ResLC.f1_t,'LineWidth',2)
+plot(ResLC.f2_t,'LineWidth',2)
+
+
+
+legend('Combined','Reconstructed','Image 1','Image 2');
 H = xlabel('Time [days]');
 H.FontSize = 18;
 H.Interpreter = 'latex';
@@ -163,6 +169,19 @@ print Sim5_Gx_Gy.eps -depsc2
 
 %plot(ResLC.T,ResLC.x_t)
 %semilogy(ResLC.w,abs(ResLC.F_w))
+
+
+%% speed tests
+FitPars    = [20 0 NaN NaN 0 1 -1 3];
+Pars = [1 0.5];
+Limits = [5 100; 0 2; 0 2; 0 2;-1 1; -2 2;-2 2; 1.5 3.5];
+tic;
+[LogL_xF,LogL_GF,LogL_F]=TimeDelay.logl_x_given_F(Pars, FitPars, Limits, ResLC.w, ResG.Gx_w, ResLC.F_t, ResLC.F_w,...
+    ResLC.sigma_F_hat, ResLC.sigma_x_hat,...
+    [2.*pi./200]);
+toc    
+% Return the -logL of x | F - of the astrometric-flux time-delay method
+% Package: +TimeDelay
 
 
 %% Ghat/Fhat example
@@ -247,17 +266,17 @@ end
 
 %FitPar = [InPar.A0   InPar.A(1)  InPar.A(2)  InPar.x0   InPar.x(1)   InPar.x(2)   InPar.y0   InPar.y(1)   InPar.y(2)    InPar.Gamma];  % [A0, A1, A2, x0, x1, x2, y0, y1, y2, gamma]
 FitPar = [InPar.A0   InPar.A(1)  InPar.A(2)  InPar.x0   InPar.x(1)   InPar.x(2)    InPar.Gamma];  % [A0, A1, A2, x0, x1, x2, gamma]
-VecA1 = logspace(log10(0.1),log10(10),50);
-VecA2dA1 = logspace(log10(0.05),log10(0.96),50);
-    Gx = ResLC.F_t.*ResLC.x_t;
-    Gy = ResLC.F_t.*ResLC.y_t;
-
-    mGx = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.x_t-mean(ResLC.x_t));
-    mGy = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.y_t-mean(ResLC.y_t));
+VecA1 = logspace(log10(0.1),log10(10),60);
+VecA2dA1 = logspace(log10(0.05),log10(0.96),60);
+%     Gx = ResLC.F_t.*ResLC.x_t;
+%     Gy = ResLC.F_t.*ResLC.y_t;
+% 
+%     mGx = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.x_t-mean(ResLC.x_t));
+%     mGy = (ResLC.F_t-mean(ResLC.F_t)).*(ResLC.y_t-mean(ResLC.y_t));
 
 
 Res=TimeDelay.fit_scan_alpha_astrometric_flux(ResLC.T, ResLC.F_t, ResLC.x_t, ResLC.sigma_F_hat, ResLC.sigma_x_hat,...
-                    'Tau',InPar.Tau,'FitPar',FitPar,'VecA1',VecA1,'VecA2dA1',VecA2dA1,'Min_w',2.*pi./300);
+                    'Tau',InPar.Tau,'FitPar',FitPar,'VecA1',VecA1,'VecA2dA1',VecA2dA1,'Min_w',[2.*pi./200]);
                 
 
 %%
@@ -266,7 +285,7 @@ Data = Res.LL_xF;
 Min=min(Data(:));
 GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
 Npar = 2;
-Level = chi2inv(GaussProb,Npar);
+Level = 0.5.*chi2inv(GaussProb,Npar);
 contour(Res.A1,Res.A2dA1,Data'-Min,Level);
 H=colorbar;
 H.Label.String = '$\Delta$ ln[$\mathcal{L}$(x,F)]';
@@ -289,7 +308,7 @@ Data = Res.LL_GF;
 Min=min(Data(:));
 GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
 Npar = 2;
-Level = chi2inv(GaussProb,Npar);
+Level = 0.5.*chi2inv(GaussProb,Npar);
 contour(Res.A1,Res.A2dA1,Data'-Min,Level);
 H=colorbar;
 H.Label.String = '$\Delta$ ln[$\mathcal{L}$(G$|$F)]';
@@ -313,7 +332,7 @@ Data = Res.LL_F;
 Min=min(Data(:));
 GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
 Npar = 2;
-Level = chi2inv(GaussProb,Npar);
+Level = 0.5.*chi2inv(GaussProb,Npar);
 contour(Res.A1,Res.A2dA1,Data'-Min,Level);
 H=colorbar;
 H.Label.String = '$\Delta$ ln[$\mathcal{L}$(F)]';
@@ -449,8 +468,10 @@ end
 
 
 for I=1:1:numel(Res)
+    I
     plot(Res(I).Tau,Res(I).LL_H1-Res(I).LL_H0)
     hold on;
+    
 end
 
 %-----------------------------------
@@ -458,9 +479,9 @@ end
 %-----------------------------------    
 
 
-VecInvTau = [(1./50:1./50:1./5)];
+VecInvTau = [(1./50:1./200:1./5)];
 VecInvTau = sort([VecInvTau, 1./20]);
-Nsim = 1
+Nsim = 10
 
 FitPar = [NaN       NaN         NaN           InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
 DefPar = [InPar.A0  InPar.A(1)  InPar.A(2)    InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
@@ -515,7 +536,7 @@ for I=1:1:numel(Res)
     plot(1./Res(I).Tau,Res(I).LL_H1-Res(I).LL_H0)
     hold on;
 end
-axis([0.02 0.2 -800 200]);
+%axis([0.02 0.2 -800 200]);
 
 H = xlabel('$1/\tau$ [day$^{-1}$]');
 H.FontSize = 18;
@@ -524,7 +545,7 @@ H = ylabel('$-\ln{\mathcal{L}(x,F,|\tau,\alpha_0,\alpha_1,\alpha_2)}$');
 H.FontSize = 18;
 H.Interpreter = 'latex';
 
-print Sim2_LogL_A0A1A2.eps -depsc2
+%print Sim2_LogL_A0A1A2.eps -depsc2
 
 %%
 Flag=OutBestPar(:,1)>1;
@@ -560,14 +581,14 @@ print Sim2_LogL_vsBestTau.eps -depsc2
 
 
 %-----------------------------------
-%% Fit TimeDelay with unknown A0/A1/A2,x0,
+%% Fit TimeDelay with unknown A0/A1/A2,x0,x1,x2 with H0
 %-----------------------------------
 
 
-VecInvTau = [(1./50:1./120:1./10)];
-Nsim = 1;
+VecInvTau = [(1./50:1./200:1./10)];
+Nsim = 100;
 
-FitPar = [NaN       NaN         NaN           NaN        InPar.x(1)    InPar.x(2)    InPar.Gamma];
+FitPar = [NaN       NaN         NaN           NaN        NaN           NaN           InPar.Gamma];
 DefPar = [InPar.A0  InPar.A(1)  InPar.A(2)    InPar.x0   InPar.x(1)    InPar.x(2)    InPar.Gamma];
 
 
@@ -609,6 +630,7 @@ for Isim=1:1:Nsim
                                              'TwoD',false,...
                                              'DefPar',DefPar,...
                                              'FitPar',FitPar,...
+                                             'Min_w',[2.*pi./200],...
                                              'VecInvTau',VecInvTau);
         toc
     end
@@ -625,10 +647,52 @@ for Isim=1:1:Nsim
 end
 
 Nr = numel(Res);
+MinD = zeros(Nr,1);
 for Ir=1:1:Nr
     plot(Res(Ir).Tau,Res(Ir).LL_H1-Res(Ir).LL_H0);
     hold on;
+    [MinD(Ir)] = min(Res(Ir).LL_H1-Res(Ir).LL_H0);
 end
+
+for I=1:1:numel(Res)
+    [MinL(I),MinI] = min(Res(I).LL_H1 - Res(I).LL_H0);
+    MinTau(I)      = Res(I).Tau(MinI);
+end
+
+histogram(MinL,(-10:1:100),'Normalization','cdf')
+axis([-10 5 0 1])
+hold on;
+
+GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
+Npar = 4;
+Level = 0.5.*chi2inv(GaussProb,Npar);
+
+plot(-Level([1 1]),[0 1],'k--')
+plot(-Level([2 2]),[0 1],'k--')
+plot(-Level([3 3]),[0 1],'k--')
+
+DD = 0.5;
+H = text(-Level(1)+DD,0.8,'1$\sigma$');
+H.Rotation = 90;
+H.Interpreter = 'latex';
+
+H = text(-Level(2)+DD,0.8,'2$\sigma$');
+H.Rotation = 90;
+H.Interpreter = 'latex';
+
+H = text(-Level(3)+DD,0.8,'3$\sigma$');
+H.Rotation = 90;
+H.Interpreter = 'latex';
+
+H = xlabel('$\Delta{\mathcal{L}}$(x,F)');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+H = ylabel('Cumulative Fraction');
+H.FontSize = 18;
+H.Interpreter = 'latex';
+
+print Sim200_CumulativeL.eps -depsc2
 
 
 

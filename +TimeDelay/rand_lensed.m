@@ -5,6 +5,7 @@ function [Res,G]=rand_lensed(varargin)
 %              combined flux light curve and center-of-light position.
 %          * Pairs of ...,key,val,... The following keys are available:
 %            'Cyclic' - Cyclic simulation. Default is false.
+%            'EndMatching' - Default is true.
 %            'A0' - \alpha_0. Default is 0.
 %            'A' - Vector of \alpha_i. Default is [1 0.66]
 %            'Tau' - Time delay. Default is 14.7.
@@ -34,6 +35,8 @@ CyclicFactor = 2;
 
 InPar = inputParser;
 addOptional(InPar,'Cyclic',false);
+addOptional(InPar,'EndMatching',true);
+addOptional(InPar,'AliasFactor',10);
 addOptional(InPar,'A0',0);
 addOptional(InPar,'A',[1 0.5]); %2./3]);
 addOptional(InPar,'Tau',[25.7]);   % all positive!
@@ -47,6 +50,7 @@ addOptional(InPar,'TotTime',240);
 addOptional(InPar,'DeltaT',1);
 addOptional(InPar,'sigma_x',0.02);  
 addOptional(InPar,'sigma_F_rel',0.05);
+addOptional(InPar,'sigmaOutTot',false);  % sigma out of total (false only multiply by f_dc)
 
 addOptional(InPar,'Validate',true);  % if LC is not positive than recalc
 addOptional(InPar,'StdMeanRange',[0.1 0.2]);  % if LC is not positive than recalc
@@ -54,6 +58,14 @@ addOptional(InPar,'StdMeanRange',[0.1 0.2]);  % if LC is not positive than recal
 addOptional(InPar,'InterpMethod','pchip');
 parse(InPar,varargin{:});
 InPar = InPar.Results;
+
+
+AliasFactor = InPar.AliasFactor;
+
+
+if AliasFactor~=1
+    InPar.DeltaT = InPar.DeltaT./AliasFactor;
+end
 
 A     = InPar.A;
 A0    = InPar.A0;
@@ -80,13 +92,6 @@ InPar.y = InPar.y - InPar.y0;
 
 
 
-sigma_F = InPar.sigma_F_rel .* f_dc;
-
-f_dc_w = f_dc.*sqrt(Nt);
-
-sigma_x_hat = InPar.sigma_x;
-sigma_F_hat = sigma_F;
-
 
 %[Sigma_phi,Sigma_F] = TimeDelay.sigma_phi(w,Tau,A,Gamma,Epsilon_hat_F);
 
@@ -95,14 +100,39 @@ w_ = w;
 w_(1) = 1;
 Sigma_red_ = w_.^(-Gamma);
 
+if InPar.sigmaOutTot
+    sigma_F = InPar.sigma_F_rel .* f_dc.*sum(InPar.A);
+    Res.sigma_F_rel2abs = f_dc.*sum(InPar.A);
+else
+    sigma_F = InPar.sigma_F_rel .* f_dc;
+    Res.sigma_F_rel2abs = f_dc;
+end
+
+f_dc_w = f_dc.*sqrt(Nt);
+
+sigma_x_hat = InPar.sigma_x;
+sigma_F_hat = sigma_F;
+
+
+
 Sigma_eps_ = ones(size(w)).*sigma_F_hat.^2;
 eps_F_w = TimeDelay.rand_psd(Sigma_eps_);
 f_red_w = TimeDelay.rand_psd(Sigma_red_);
+
+
+
+
+
 eps_F_w(1) = randn(1,1).*sigma_F_hat;
 f_red_w(1) = f_dc_w;
 
-f1_w = A(1) .* f_red_w;
-f2_w = A(2) .* f_red_w .* exp(1j.*w.*Tau(1));
+%f1_w = A(1) .* f_red_w;
+%f2_w = A(2) .* f_red_w .* exp(1j.*w.*Tau(1));
+
+% need to justify the multiplication by sqrt(AliasFactor)
+f1_w = A(1).*sqrt(InPar.AliasFactor) .* f_red_w;
+f2_w = A(2).*sqrt(InPar.AliasFactor) .* f_red_w .* exp(1j.*w.*Tau(1));
+
 phi_w = f1_w + f2_w;
 phi_w(1) = phi_w(1) + A0 .* Nt;
 F_w = phi_w + eps_F_w;
@@ -123,6 +153,8 @@ Res.F_t         = F_t;
 Res.x_t         = x_t;
 Res.sigma_F_hat = sigma_F_hat;
 Res.sigma_x_hat = sigma_x_hat;
+Res.sigma_F_rel = InPar.sigma_F_rel;
+Res.sigma_x     = InPar.sigma_x;
 Res.w           = w;
 Res.F_w         = F_w;
 Res.f1_t        = f1_t;
@@ -166,8 +198,34 @@ if ~InPar.Cyclic
     
 end
     
+if AliasFactor~=1
+    % resample the light curve
+    
+    Res.T  = Res.T(1:AliasFactor:end);
+    Res.F_t = Res.F_t(1:AliasFactor:end);
+    Res.x_t = Res.x_t(1:AliasFactor:end);
+    if ~isempty(Res.y_t)
+        Res.y_t = Res.y_t(1:AliasFactor:end);
+    end
+    
+    Nt = numel(Res.T);
+    Freqs = TimeDelay.fft_freq(Nt, InPar.DeltaT.*AliasFactor);
+    Res.w = 2.*pi.*Freqs(:);
+    Res.F_w = fft(Res.F_t) ./ sqrt(Nt);  % ortho normalization
+    
+    Res.StdDivMeanFlux = std(Res.F_t)./mean(Res.F_t);
+    
+    Res.f1_t        = Res.f1_t(1:AliasFactor:end);
+    Res.f2_t        = Res.f2_t(1:AliasFactor:end);
+    Res.chi_x_t     = Res.chi_x_t(1:AliasFactor:end);
+    
+end
+
 if InPar.Validate && (any(Res.F_t<0) || Res.StdDivMeanFlux<InPar.StdMeanRange(1) || Res.StdDivMeanFlux>InPar.StdMeanRange(2))
-    [Res]=TimeDelay.rand_lensed(varargin{:});
+    S = std(Res.F_t);
+    M = min(Res.F_t);
+    Factor = mean(InPar.StdMeanRange)./(S./(InPar.f_dc.*sum(InPar.A)));
+    [Res]=TimeDelay.rand_lensed(varargin{:},'f_dc',InPar.f_dc./Factor);
 end
 
 
@@ -181,3 +239,24 @@ if nargout>1
     G.Gy_w = fft(G.Gy_t) ./ sqrt(N);
 
 end
+
+Res.Mean = mean(Res.F_t);
+
+
+if InPar.EndMatching
+    %ParPoly = polyfit(Res.T, Res.F_t, 1);
+    %ParPoly(2) = 0;
+    %Res.F_t = Res.F_t - polyval(ParPoly,Res.T);
+    %N = numel(Res.F_t);
+    %Res.F_w = fft(Res.F_t)./sqrt(N);
+    
+    % end matching
+    [Res.F_t] = TimeDelay.end_matching(Res.T,Res.F_t);
+    
+    N = numel(Res.F_t);
+    Freqs = TimeDelay.fft_freq(N, InPar.DeltaT.*AliasFactor);
+    Res.w = 2.*pi.*Freqs(:);
+    Res.F_w = fft(Res.F_t)./sqrt(N);
+end
+    
+    
