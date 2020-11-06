@@ -10,7 +10,7 @@ addOptional(InPar,'InputFT',false);  % input is t,F_t (false) or w,F_w (true)
 
 addOptional(InPar,'FitPar',[NaN   NaN      1./1000        1]);  % [A1, gamma1 w_br gamma2]
 addOptional(InPar,'DefPar',[1     2        1./1000        1]);  % [A1, gamma1 w_br gamma2]
-addOptional(InPar,'Limits',[1e-5 1000;  1 4; 1./1000 2; 1 4]); %  without Tau
+addOptional(InPar,'Limits',[1e-5 1000;  1 4.5; 1./1000 2; 1 5]); %  without Tau
 addOptional(InPar,'Min_w',2.*pi./100);
 addOptional(InPar,'Verbose',false);
 parse(InPar,varargin{:});

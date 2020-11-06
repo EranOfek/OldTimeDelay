@@ -309,7 +309,7 @@ switch lower(Plot)
         plot(1./Res(1,1).Tau,Mean_NEM_Alias10(:),'LineWidth',2)
         plot(1./Res(1,1).Tau,Mean_NEM_Alias1(:),'LineWidth',2)
                 
-        legend('Std','Mean (EM/Alias10)','Mean (Alias10)','Mean','AutoUpdate','off','Location','SouthEast')
+        legend('Std','Mean (EM/Alias10)','Mean (Alias10)','Mean (Alias1)','AutoUpdate','off','Location','SouthEast')
         
         
         GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
@@ -362,7 +362,8 @@ switch lower(Plot)
         %Nsim = 1000;
         clear Res;
 
-        gammaVec = [1.5 2 2.5 3 3.5];
+        
+        gammaVec = [1.8 2 2.5 3 3.5];
         Ng = numel(gammaVec);
         for Ig=1:1:Ng
             InPar.Gamma = gammaVec(Ig);
@@ -374,7 +375,15 @@ switch lower(Plot)
             for Isim=1:1:Nsim
                 [Ig, Isim, Nsim]
                 % simulate LC
-                [ResLC,ResG]=generateLC(InPar);
+                try
+                    [ResLC,ResG]=generateLC(InPar);
+                catch
+                    try
+                        [ResLC,ResG]=generateLC(InPar);
+                    catch
+                        [ResLC,ResG]=generateLC(InPar);
+                    end
+                end
                 
                 Res(Ig,Isim) = TimeDelay.fit_flux(ResLC.T,ResLC.F_t,ResLC.sigma_F_hat,'VecInvTau',VecInvTau,'FitPar',FitPar,'DefPar',DefPar,...
                     'Min_w',[2.*pi./5000 2.*pi./0.01]);
@@ -384,7 +393,7 @@ switch lower(Plot)
         end
         toc
 
-        save -v7.3 Res_Sim11_vargamma.mat Res gammaVec InPar
+        save -v7.3 Res_Sim11_EM_Alias10_vargamma.mat Res gammaVec InPar
 
         %%
         AllDL = zeros(Nsim,numel(Res(1).Tau));
@@ -401,8 +410,8 @@ switch lower(Plot)
             plot(1./Res(1,1).Tau,Mean{Ig},'LineWidth',2)
             hold on;
         end
-        legend('1.5','2.0','2.5','3.0','3.5','AutoUpdate','off','Location','SouthEast')
-
+        H=legend('$\gamma=1.8$','$\gamma=2.0$','$\gamma=2.5$','$\gamma=3.0$','$\gamma=3.5$','AutoUpdate','off','Location','SouthEast')
+        H.Interpreter = 'latex';
         GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
         Npar = 2;  % Tau, Alpha2
         Level = 0.5.*chi2inv(GaussProb,Npar);
@@ -411,7 +420,7 @@ switch lower(Plot)
         plot([0 1],-Level(2).*ones(1,2),'k--');
         plot([0 1],-Level(3).*ones(1,2),'k--');
 
-        axis([0.01 0.1 -20 2])
+        axis([0.01 0.1 -33 2])
 
         H = xlabel('1/$\tau$ [day]');
         H.FontSize = 18;
@@ -420,7 +429,7 @@ switch lower(Plot)
         H.FontSize = 18;
         H.Interpreter = 'latex';
         
-        print Flux_Sim11_vargamma_DL_Tau.eps -depsc2
+        print Flux_Sim11_EM_Alias10_vargamma_DL_Tau.eps -depsc2
         
         %%    
         %AllDLN = AllDL;
@@ -453,7 +462,11 @@ switch lower(Plot)
             for Isim=1:1:Nsim
                 [Ig, Isim, Nsim]
                 % simulate LC
-                [ResLC,ResG]=generateLC(InPar);
+                try
+                    [ResLC,ResG]=generateLC(InPar);
+                catch
+                    [ResLC,ResG]=generateLC(InPar);
+                end
                 
                 Res(Ig,Isim) = TimeDelay.fit_flux(ResLC.T,ResLC.F_t,ResLC.sigma_F_hat,'VecInvTau',VecInvTau,'FitPar',FitPar,'DefPar',DefPar,'Min_w',Min_w);
 
@@ -462,7 +475,7 @@ switch lower(Plot)
         end
         toc
 
-        save -v7.3 Res_Sim11_wronggamma.mat Res gammaVec InPar
+        save -v7.3 Res_Sim11_EM_Alias10_wronggamma.mat Res gammaVec InPar
 
         %%
         AllDL = zeros(Nsim,numel(Res(1).Tau));
@@ -479,8 +492,8 @@ switch lower(Plot)
             plot(1./Res(1,1).Tau,Mean{Ig},'LineWidth',2)
             hold on;
         end
-        legend('1.5','2.0','2.5','3.0','3.5','AutoUpdate','off','Location','SouthEast')
-
+        H=legend('$\gamma=1.5$','$\gamma=2.0$','$\gamma=2.5$','$\gamma=3.0$','$\gamma=3.5$','AutoUpdate','off','Location','SouthEast')
+        H.Interpreter = 'latex';
         GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
         Npar = 2;  % Tau, Alpha2
         Level = 0.5.*chi2inv(GaussProb,Npar);
@@ -489,7 +502,7 @@ switch lower(Plot)
         plot([0 1],-Level(2).*ones(1,2),'k--');
         plot([0 1],-Level(3).*ones(1,2),'k--');
 
-        axis([1./100 1./10 -10 2])
+        axis([1./100 1./10 -35 2])
 
         H = xlabel('1/$\tau$ [day]');
         H.FontSize = 18;
@@ -498,7 +511,7 @@ switch lower(Plot)
         H.FontSize = 18;
         H.Interpreter = 'latex';
         
-        print Flux_Sim11_wronggamma_DL_Tau.eps -depsc2
+        print Flux_Sim11_EM_Alias10_wronggamma_DL_Tau.eps -depsc2
         
         %%    
         %AllDLN = AllDL;
@@ -519,7 +532,7 @@ switch lower(Plot)
         %Nsim = 1000;
         clear Res;
 
-        sigmaFVec = [0.001 0.003 0.01 0.02, 0.03, 0.05, 0.1];
+        sigmaFVec = [0.001 0.003 0.01, 0.03, 0.05];
         Ng = numel(sigmaFVec);
         for Ig=1:1:Ng
             InPar.sigma_F_rel = sigmaFVec(Ig).*sum(InPar.A);
@@ -532,7 +545,15 @@ switch lower(Plot)
             for Isim=1:1:Nsim
                 [Ig, Isim, Nsim]
                 % simulate LC
-                [ResLC,ResG]=generateLC(InPar);
+                try
+                    [ResLC,ResG]=generateLC(InPar);
+                catch
+                    try
+                        [ResLC,ResG]=generateLC(InPar);
+                    catch 
+                        [ResLC,ResG]=generateLC(InPar);
+                    end
+                end
                 
                 Res(Ig,Isim) = TimeDelay.fit_flux(ResLC.T,ResLC.F_t,ResLC.sigma_F_hat,'VecInvTau',VecInvTau,'FitPar',FitPar,'DefPar',DefPar,'Min_w',[2.*pi./5000 2.*pi./0.01]);
 
@@ -541,7 +562,7 @@ switch lower(Plot)
         end
         toc
         
-        save -v7.3 Res_Sim11_varsigmaf.mat Res sigmaFVec InPar
+        save -v7.3 Res_Sim11_EM_Alias10_varsigmaf.mat Res sigmaFVec InPar
 
         %%
 
@@ -557,7 +578,8 @@ switch lower(Plot)
             plot(1./Res(1,1).Tau,Mean{Ig},'LineWidth',2)
             hold on;
         end
-        legend('0.003','0.01','0.02','0.03','0.05','0.1','AutoUpdate','off','Location','SouthEast')
+        H = legend('$\sigma{F}/\langle{F}\rangle=0.003$','$\sigma{F}/\langle{F}\rangle=0.01$','$\sigma{F}/\langle{F}\rangle=0.03$','$\sigma{F}/\langle{F}\rangle=0.05$','AutoUpdate','off','Location','SouthEast')
+        H.Interpreter = 'latex';
 
         GaussProb = 1-2.*normcdf([1:1:5],0,1,'upper');
         Npar = 2;
@@ -567,7 +589,7 @@ switch lower(Plot)
         plot([0 1],-Level(2).*ones(1,2),'k--');
         plot([0 1],-Level(3).*ones(1,2),'k--');
 
-        axis([1./100 1./10 -15 2])
+        axis([1./100 1./10 -90 2])
 
         
         H = xlabel('1/$\tau$ [day]');
@@ -577,7 +599,7 @@ switch lower(Plot)
         H.FontSize = 18;
         H.Interpreter = 'latex';
         
-        print Flux_Sim11_varsigmaf_DL_Tau.eps -depsc2
+        print Flux_Sim11_EM_Alias10_varsigmaf_DL_Tau.eps -depsc2
         
     case 'vara2'
         %% simulations as a function of A2
@@ -884,8 +906,8 @@ switch lower(Plot)
         %% unequally space simulatins
         % using simulation 11
         InPar=select_parameters(11);
-        
-        
+        InPar.AliasFactor = 1;
+
         Min_w = [2.*pi./5000 2.*pi./0.01];
         %Min_w = 2.*pi./[200 10];
         
@@ -925,7 +947,7 @@ switch lower(Plot)
         Nseason = numel(Section);
         
         
-        save -v7.3 Res_Sim11_uneq.mat ResC ResA InPar
+        save -v7.3 Res_Sim11_EM_Alias10_uneq.mat ResC ResA InPar
         
         %MeanDLL = mean([ResC.DLL].');
         %StdDLL  = std([ResC.DLL].');
@@ -970,7 +992,7 @@ switch lower(Plot)
         H.Interpreter = 'latex';
         
         
-        print Flux_uneq_DLTau.eps -depsc2
+        print Flux_uneq_EM_DLTau.eps -depsc2
         
 %         for I=1:1:Nsim
 %             %plot(Res(I).Tau,Res(I).LL_H1 - Res(I).LL_H0);
